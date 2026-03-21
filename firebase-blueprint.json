@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "customers": {
+      "title": "Customer",
+      "description": "A customer of the technical assistance shop",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the customer" },
+        "phone": { "type": "string", "description": "WhatsApp number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone"]
+    },
+    "serviceOrders": {
+      "title": "Service Order",
+      "description": "A repair request for a mobile device",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "description": "Reference to the customer" },
+        "customerName": { "type": "string", "description": "Denormalized customer name for easier listing" },
+        "customerPhone": { "type": "string", "description": "Denormalized customer phone for easier listing" },
+        "model": { "type": "string", "description": "Device model" },
+        "services": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of selected services"
+        },
+        "problem": { "type": "string", "description": "Reported issue" },
+        "entryDate": { "type": "string", "format": "date-time" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "warrantyDays": { "type": "integer", "description": "Number of warranty days" },
+        "status": { "type": "string", "enum": ["pending", "in-progress", "ready", "delivered", "cancelled"] },
+        "notes": { "type": "string" },
+        "totalValue": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "model", "problem", "entryDate", "status"]
+    },
+    "products": {
+      "title": "Product",
+      "description": "An accessory or part for sale",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "integer" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "stock"]
+    },
+    "sales": {
+      "title": "Sale",
+      "description": "A record of a product sale",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "totalValue": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "quantity", "totalValue", "date"]
+    },
+    "expenses": {
+      "title": "Expense",
+      "description": "A business expense (rent, parts, etc.)",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "value": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["description", "value", "date"]
+    },
+    "users": {
+      "title": "User",
+      "description": "System user (admin or staff)",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "staff"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/customers": { "schema": "customers", "description": "Collection of customers" },
+    "/serviceOrders": { "schema": "serviceOrders", "description": "Collection of repair orders" },
+    "/products": { "schema": "products", "description": "Collection of products for sale" },
+    "/sales": { "schema": "sales", "description": "Collection of sales records" },
+    "/users": { "schema": "users", "description": "Collection of system users" }
+  }
+}
