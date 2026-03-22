@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Customer } from '../types';
-import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
+import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../App';
 import { maskPhone } from '../utils/masks';
+import { ServiceOrder, Sale } from '../types';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function Customers() {
   const { user, profile } = useAuth();
@@ -13,7 +16,11 @@ export default function Customers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<ServiceOrder[]>([]);
+  const [customerSales, setCustomerSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -23,6 +30,13 @@ export default function Customers() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   async function fetchCustomers() {
     try {
@@ -48,12 +62,14 @@ export default function Customers() {
           phone,
           updatedAt: serverTimestamp(),
         });
+        setSuccess('Cliente atualizado com sucesso!');
       } else {
         await addDoc(collection(db, 'customers'), {
           name,
           phone,
           createdAt: serverTimestamp(),
         });
+        setSuccess('Cliente cadastrado com sucesso!');
       }
       closeModal();
       fetchCustomers();
@@ -99,6 +115,25 @@ export default function Customers() {
                   profile?.email?.toLowerCase() === 'afonsocnj@gmail.com' || 
                   user?.email?.toLowerCase() === 'afonsocnj@gmail.com';
 
+  const openDetails = async (customer: Customer) => {
+    setSelectedCustomer(customer);
+    try {
+      const [osSnap, salesSnap] = await Promise.all([
+        getDocs(query(collection(db, 'serviceOrders'), where('customerId', '==', customer.id))),
+        getDocs(query(collection(db, 'sales'), where('customerId', '==', customer.id))) // Assuming sales has customerId
+      ]);
+      
+      const osList: ServiceOrder[] = [];
+      osSnap.forEach(doc => osList.push({ id: doc.id, ...doc.data() } as ServiceOrder));
+      setCustomerOrders(osList);
+
+      const salesList: Sale[] = [];
+      salesSnap.forEach(doc => salesList.push({ id: doc.id, ...doc.data() } as Sale));
+      setCustomerSales(salesList);
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+    }
+  };
   const openModal = (customer?: Customer) => {
     setError(null);
     if (customer) {
@@ -139,6 +174,13 @@ export default function Customers() {
         </button>
       </div>
 
+      {success && (
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+          <CheckCircle2 className="h-4 w-4" />
+          {success}
+        </div>
+      )}
+
       <div className="card p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -167,33 +209,40 @@ export default function Customers() {
                 <tr key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4 font-medium text-[var(--text-main)]">{customer.name}</td>
                   <td className="px-6 py-4 text-[var(--text-muted)]">{customer.phone}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <a
-                        href={`https://wa.me/55${customer.phone.replace(/\D/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-green-600 hover:text-green-700"
-                      >
-                        <Phone className="h-4 w-4" />
-                        <span className="hidden sm:inline">WhatsApp</span>
-                      </a>
-                      <button
-                        onClick={() => openModal(customer)}
-                        className="text-blue-600 hover:text-blue-700"
-                        title="Editar"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeletingCustomer(customer.id)}
-                        className="text-red-600 hover:text-red-700"
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <a
+                          href={`https://wa.me/55${customer.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary h-8 w-8 p-0 text-green-600 dark:text-green-400"
+                          title="WhatsApp"
+                        >
+                          <Phone className="h-4 w-4" />
+                        </a>
+                        <button
+                          onClick={() => openDetails(customer)}
+                          className="btn btn-secondary h-8 w-8 p-0 text-slate-600 dark:text-slate-400"
+                          title="Ver Detalhes"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => openModal(customer)}
+                          className="btn btn-secondary h-8 w-8 p-0 text-blue-600 dark:text-blue-400"
+                          title="Editar"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingCustomer(customer.id)}
+                          className="btn btn-secondary h-8 w-8 p-0 text-red-600 dark:text-red-400"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                 </tr>
               ))
             ) : (
@@ -294,6 +343,78 @@ export default function Customers() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalhes do Cliente */}
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-[var(--text-main)]">{selectedCustomer.name}</h2>
+                <p className="text-sm text-[var(--text-muted)]">{selectedCustomer.phone}</p>
+              </div>
+              <button onClick={() => setSelectedCustomer(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 font-semibold text-[var(--text-main)]">
+                  <ClipboardList className="h-5 w-5" />
+                  Ordens de Serviço
+                </div>
+                <div className="space-y-3">
+                  {customerOrders.length > 0 ? (
+                    customerOrders.map(os => (
+                      <div key={os.id} className="rounded-lg border border-[var(--border-color)] p-3 text-sm">
+                        <div className="flex justify-between font-medium">
+                          <span>{os.model}</span>
+                          <span>R$ {os.totalValue?.toFixed(2)}</span>
+                        </div>
+                        <p className="text-[var(--text-muted)]">{os.problem}</p>
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">
+                          {os.createdAt?.toDate ? format(os.createdAt.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)]">Nenhuma O.S. encontrada.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 font-semibold text-[var(--text-main)]">
+                  <ShoppingCart className="h-5 w-5" />
+                  Vendas
+                </div>
+                <div className="space-y-3">
+                  {customerSales.length > 0 ? (
+                    customerSales.map(sale => (
+                      <div key={sale.id} className="rounded-lg border border-[var(--border-color)] p-3 text-sm">
+                        <div className="flex justify-between font-medium text-[var(--text-main)]">
+                          <span>
+                            {sale.items && sale.items.length > 0 
+                              ? sale.items.map(item => `${item.productName} (x${item.quantity})`).join(', ')
+                              : sale.productName}
+                          </span>
+                          <span>R$ {sale.totalValue?.toFixed(2)}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">
+                          {sale.date?.toDate ? format(sale.date.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)]">Nenhuma venda encontrada.</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

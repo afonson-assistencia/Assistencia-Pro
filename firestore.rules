@@ -10,11 +10,16 @@ service cloud.firestore {
 
     function isAdmin() {
       let adminEmails = ["afonsocnj@gmail.com", "admintec@gmail.com"];
-      return request.auth != null && (
+      return isSignedIn() && (
         (request.auth.token.email.lower() in adminEmails) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
+    }
+
+    // Validate that the document contains only the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
     }
 
     // ===============================================================
@@ -44,6 +49,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
     match /sales/{saleId} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn();
@@ -54,6 +65,15 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn();
       allow delete: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /test/{docId} {
+      allow read: if true;
     }
 
     // Default deny

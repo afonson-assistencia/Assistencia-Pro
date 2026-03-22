@@ -12,6 +12,9 @@
     --text-main: #0f172a;
     --text-muted: #64748b;
     --border-color: #e2e8f0;
+    --accent-primary: #0f172a;
+    --accent-foreground: #ffffff;
+    --input-bg: #ffffff;
   }
 
   [data-theme='dark'] {
@@ -20,6 +23,9 @@
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --border-color: #1e293b;
+    --accent-primary: #f8fafc;
+    --accent-foreground: #0f172a;
+    --input-bg: #1e293b;
   }
 
   body {

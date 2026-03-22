@@ -86,8 +86,8 @@ export default function Expenses() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Despesas</h1>
-          <p className="text-slate-500">Controle seus gastos e custos operacionais.</p>
+          <h1 className="text-2xl font-bold text-[var(--text-main)]">Despesas</h1>
+          <p className="text-[var(--text-muted)]">Controle seus gastos e custos operacionais.</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2">
           <Plus className="h-4 w-4" />
@@ -97,14 +97,14 @@ export default function Expenses() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-1">
-          <h3 className="mb-4 font-semibold text-slate-900">Resumo de Gastos</h3>
+          <h3 className="mb-4 font-semibold text-[var(--text-main)]">Resumo de Gastos</h3>
           <div className="space-y-4">
-            <div className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-500">Total de Despesas</span>
-              <span className="font-bold text-slate-900">{expenses.length}</span>
+            <div className="flex justify-between border-b border-[var(--border-color)] pb-2">
+              <span className="text-[var(--text-muted)]">Total de Despesas</span>
+              <span className="font-bold text-[var(--text-main)]">{expenses.length}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-500">Valor Total Gasto</span>
+            <div className="flex justify-between border-b border-[var(--border-color)] pb-2">
+              <span className="text-[var(--text-muted)]">Valor Total Gasto</span>
               <span className="font-bold text-red-600">
                 R$ {expenses.reduce((acc, e) => acc + e.value, 0).toFixed(2)}
               </span>
@@ -114,7 +114,7 @@ export default function Expenses() {
 
         <div className="card overflow-hidden lg:col-span-2">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
               <tr>
                 <th className="px-6 py-3 font-semibold">Descrição</th>
                 <th className="px-6 py-3 font-semibold">Categoria</th>
@@ -123,24 +123,24 @@ export default function Expenses() {
                 <th className="px-6 py-3 font-semibold text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--border-color)]">
               {expenses.length > 0 ? (
                 expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-medium text-slate-900">{expense.description}</td>
-                    <td className="px-6 py-4 text-slate-600">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">
+                  <tr key={expense.id} className="hover:bg-[var(--bg-main)]">
+                    <td className="px-6 py-4 font-medium text-[var(--text-main)]">{expense.description}</td>
+                    <td className="px-6 py-4 text-[var(--text-muted)]">
+                      <span className="rounded-full bg-[var(--bg-main)] px-2 py-0.5 text-xs border border-[var(--border-color)]">
                         {expense.category}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-red-600 font-medium">R$ {expense.value.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-slate-500">
+                    <td className="px-6 py-4 text-[var(--text-muted)]">
                       {expense.date?.toDate ? format(expense.date.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => setDeletingExpense(expense.id)}
-                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        className="btn-secondary text-red-600 hover:text-red-700 p-2 rounded-lg"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -149,7 +149,7 @@ export default function Expenses() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-[var(--text-muted)]">
                     {loading ? 'Carregando...' : 'Nenhuma despesa registrada.'}
                   </td>
                 </tr>
@@ -162,12 +162,12 @@ export default function Expenses() {
       {/* Modal Confirmação de Exclusão */}
       {deletingExpense && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)]">
             <div className="flex items-center gap-3 text-red-600 mb-4">
               <AlertCircle className="h-6 w-6" />
               <h2 className="text-xl font-bold">Confirmar Exclusão</h2>
             </div>
-            <p className="text-slate-600 mb-6">
+            <p className="text-[var(--text-muted)] mb-6">
               Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
             </p>
             <div className="flex gap-3">
@@ -190,17 +190,17 @@ export default function Expenses() {
 
       {/* Modal Nova Despesa */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)]">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">Registrar Despesa</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <h2 className="text-xl font-bold text-[var(--text-main)]">Registrar Despesa</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
                 <X className="h-6 w-6" />
               </button>
             </div>
             <form onSubmit={handleAddExpense} className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-slate-700">Descrição</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Descrição</label>
                 <input
                   type="text"
                   required
@@ -211,7 +211,7 @@ export default function Expenses() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700">Categoria</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Categoria</label>
                 <select
                   className="input mt-1"
                   value={category}
@@ -223,7 +223,7 @@ export default function Expenses() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-slate-700">Valor (R$)</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Valor (R$)</label>
                 <input
                   type="number"
                   step="0.01"

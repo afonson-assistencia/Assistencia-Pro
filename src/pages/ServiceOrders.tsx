@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +21,7 @@ export default function ServiceOrders() {
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sendingN8N, setSendingN8N] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // New Customer state
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -39,6 +40,8 @@ export default function ServiceOrders() {
 
   // Print state
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<ServiceOrder | null>(null);
+  const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -175,23 +178,36 @@ export default function ServiceOrders() {
 
   const updateStatus = async (id: string, newStatus: OSStatus) => {
     try {
-      await updateDoc(doc(db, 'serviceOrders', id), { status: newStatus });
       const order = orders.find(o => o.id === id);
-      if (order) {
-        try {
-          await sendToN8N({
-            event: 'os_status_updated',
-            orderId: id,
-            customerName: order.customerName,
-            customerPhone: order.customerPhone,
-            model: order.model,
-            status: newStatus,
-            statusLabel: STATUS_LABELS[newStatus],
-          });
-        } catch (n8nErr) {
-          console.warn('N8N status update send failed:', n8nErr);
-        }
+      if (!order) return;
+
+      const historyEntry = {
+        status: newStatus,
+        date: Timestamp.now(),
+        notes: `Status alterado para ${STATUS_LABELS[newStatus]}`
+      };
+
+      const updatedHistory = [...(order.statusHistory || []), historyEntry];
+
+      await updateDoc(doc(db, 'serviceOrders', id), { 
+        status: newStatus,
+        statusHistory: updatedHistory
+      });
+
+      try {
+        await sendToN8N({
+          event: 'os_status_updated',
+          orderId: id,
+          customerName: order.customerName,
+          customerPhone: order.customerPhone,
+          model: order.model,
+          status: newStatus,
+          statusLabel: STATUS_LABELS[newStatus],
+        });
+      } catch (n8nErr) {
+        console.warn('N8N status update send failed:', n8nErr);
       }
+      
       fetchOrders();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -260,10 +276,28 @@ Obrigado pela preferência!`;
           <h1 className="text-2xl font-bold text-[var(--text-main)]">Ordens de Serviço</h1>
           <p className="text-[var(--text-muted)]">Gerencie os consertos em andamento.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2">
-          <Plus className="h-4 w-4" />
-          Nova O.S.
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-1 mr-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              title="Visualização em Grade"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              title="Visualização em Tabela"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2">
+            <Plus className="h-4 w-4" />
+            Nova O.S.
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row">
@@ -296,108 +330,203 @@ Obrigado pela preferência!`;
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {filteredOrders.length > 0 ? (
-          filteredOrders.map((order) => (
-            <div key={order.id} className="card p-6 transition-all hover:shadow-md border border-[var(--border-color)]">
-              <div className="mb-4 flex items-start justify-between">
-                <div>
-                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status]}`}>
-                    {STATUS_LABELS[order.status]}
-                  </span>
-                  <h3 className="mt-2 text-lg font-bold text-[var(--text-main)]">{order.model}</h3>
-                  <p className="text-sm text-[var(--text-muted)]">{order.customerName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</p>
-                  <p className="text-xs text-[var(--text-muted)]">#{order.id.slice(-4).toUpperCase()}</p>
-                </div>
-              </div>
-
-              <div className="mb-6 space-y-2 text-sm">
-                {order.services?.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[var(--text-muted)]">Serviços:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {order.services.map(s => (
-                        <span key={s} className="rounded bg-slate-200 text-black px-1.5 py-0.5 text-[10px] font-bold">
-                          {s}
-                        </span>
-                      ))}
-                    </div>
+      {viewMode === 'grid' ? (
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          {filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <div key={order.id} className="card p-6 transition-all hover:shadow-md border border-[var(--border-color)]">
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status]}`}>
+                      {STATUS_LABELS[order.status]}
+                    </span>
+                    <h3 className="mt-2 text-lg font-bold text-[var(--text-main)]">{order.model}</h3>
+                    <p className="text-sm text-[var(--text-muted)]">{order.customerName}</p>
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)]">Problema:</span>
-                  <span className="font-medium text-[var(--text-main)]">{order.problem}</span>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</p>
+                    <p className="text-xs text-[var(--text-muted)]">#{order.id.slice(-4).toUpperCase()}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)]">Entrada:</span>
-                  <span className="font-medium text-[var(--text-main)]">
-                    {order.entryDate?.toDate ? format(order.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-muted)]">Prazo:</span>
-                  <span className="font-medium text-[var(--text-main)]">
-                    {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex flex-wrap gap-2">
-                <select
-                  className="btn btn-secondary flex-1 text-xs"
-                  value={order.status}
-                  onChange={(e) => updateStatus(order.id, e.target.value as OSStatus)}
-                >
-                  {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-                <a
-                  href={generateWhatsAppLink(order)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary p-2 text-green-600"
-                  title="Enviar WhatsApp"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </a>
-                <button
-                  onClick={() => handleManualN8NSend(order)}
-                  disabled={sendingN8N === order.id}
-                  className={`btn btn-secondary p-2 text-blue-600 ${sendingN8N === order.id ? 'opacity-50' : ''}`}
-                  title="Enviar para n8n"
-                >
-                  <Send className={`h-4 w-4 ${sendingN8N === order.id ? 'animate-pulse' : ''}`} />
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setTimeout(() => handlePrint(), 100);
-                  }}
-                  className="btn btn-secondary p-2 text-[var(--text-muted)]"
-                  title="Imprimir"
-                >
-                  <Printer className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setDeletingOrder(order.id)}
-                  className="btn btn-secondary p-2 text-red-600"
-                  title="Excluir"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="mb-6 space-y-2 text-sm">
+                  {order.services?.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[var(--text-muted)]">Serviços:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {order.services.map(s => (
+                          <span key={s} className="rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-1.5 py-0.5 text-[10px] font-bold">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Problema:</span>
+                    <span className="font-medium text-[var(--text-main)]">{order.problem}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Entrada:</span>
+                    <span className="font-medium text-[var(--text-main)]">
+                      {order.entryDate?.toDate ? format(order.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Prazo:</span>
+                    <span className="font-medium text-[var(--text-main)]">
+                      {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="btn btn-secondary flex-1 text-xs h-8 py-0"
+                    value={order.status}
+                    onChange={(e) => updateStatus(order.id, e.target.value as OSStatus)}
+                  >
+                    {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setViewingOrder(order)}
+                      className="btn btn-secondary h-8 w-8 p-0 text-slate-600 dark:text-slate-400"
+                      title="Ver Detalhes"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <a
+                      href={generateWhatsAppLink(order)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary h-8 w-8 p-0 text-green-600 dark:text-green-400"
+                      title="Enviar WhatsApp"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </a>
+                    <button
+                      onClick={() => handleManualN8NSend(order)}
+                      disabled={sendingN8N === order.id}
+                      className={`btn btn-secondary h-8 w-8 p-0 text-blue-600 dark:text-blue-400 ${sendingN8N === order.id ? 'opacity-50' : ''}`}
+                      title="Enviar para n8n"
+                    >
+                      <Send className={`h-4 w-4 ${sendingN8N === order.id ? 'animate-pulse' : ''}`} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setTimeout(() => handlePrint(), 100);
+                      }}
+                      className="btn btn-secondary h-8 w-8 p-0 text-[var(--text-muted)]"
+                      title="Imprimir"
+                    >
+                      <Printer className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeletingOrder(order.id)}
+                      className="btn btn-secondary h-8 w-8 p-0 text-red-600 dark:text-red-400"
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center text-[var(--text-muted)]">
+              {loading ? 'Carregando...' : 'Nenhuma ordem de serviço encontrada.'}
             </div>
-          ))
-        ) : (
-          <div className="col-span-full py-12 text-center text-[var(--text-muted)]">
-            {loading ? 'Carregando...' : 'Nenhuma ordem de serviço encontrada.'}
+          )}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
+                <tr>
+                  <th className="px-6 py-3 font-semibold">ID</th>
+                  <th className="px-6 py-3 font-semibold">Cliente</th>
+                  <th className="px-6 py-3 font-semibold">Aparelho</th>
+                  <th className="px-6 py-3 font-semibold">Status</th>
+                  <th className="px-6 py-3 font-semibold">Entrada</th>
+                  <th className="px-6 py-3 font-semibold">Valor</th>
+                  <th className="px-6 py-3 font-semibold text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-color)]">
+                {filteredOrders.length > 0 ? (
+                  filteredOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs">#{order.id.slice(-4).toUpperCase()}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-[var(--text-main)]">{order.customerName}</div>
+                        <div className="text-xs text-[var(--text-muted)]">{order.customerPhone}</div>
+                      </td>
+                      <td className="px-6 py-4 text-[var(--text-main)]">{order.model}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COLORS[order.status]}`}>
+                          {STATUS_LABELS[order.status]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-[var(--text-muted)]">
+                        {order.entryDate?.toDate ? format(order.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            onClick={() => setViewingOrder(order)}
+                            className="btn btn-secondary h-7 w-7 p-0"
+                            title="Ver Detalhes"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <a
+                            href={generateWhatsAppLink(order)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary h-7 w-7 p-0 text-green-600"
+                            title="WhatsApp"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                          </a>
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setTimeout(() => handlePrint(), 100);
+                            }}
+                            className="btn btn-secondary h-7 w-7 p-0"
+                            title="Imprimir"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingOrder(order.id)}
+                            className="btn btn-secondary h-7 w-7 p-0 text-red-600"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-[var(--text-muted)]">
+                      {loading ? 'Carregando...' : 'Nenhuma ordem de serviço encontrada.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Modal Confirmação de Exclusão */}
       {deletingOrder && (
@@ -603,6 +732,105 @@ Obrigado pela preferência!`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes da O.S. */}
+      {viewingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[var(--text-main)]">Detalhes da O.S. #{viewingOrder.id.slice(-6).toUpperCase()}</h2>
+              <button onClick={() => setViewingOrder(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/50">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Cliente</p>
+                  <p className="mt-1 font-medium text-[var(--text-main)]">{viewingOrder.customerName}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{viewingOrder.customerPhone}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/50">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Aparelho</p>
+                  <p className="mt-1 font-medium text-[var(--text-main)]">{viewingOrder.model}</p>
+                  <p className="text-sm text-[var(--text-muted)]">Entrada: {viewingOrder.entryDate?.toDate ? format(viewingOrder.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</p>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2 font-semibold text-[var(--text-main)]">
+                  <ClipboardList className="h-4 w-4" />
+                  Serviços e Problema
+                </div>
+                <div className="rounded-lg border border-[var(--border-color)] p-4">
+                  <p className="text-sm font-medium text-[var(--text-main)] mb-2">Problema Relatado:</p>
+                  <p className="text-sm text-[var(--text-muted)] mb-4">{viewingOrder.problem}</p>
+                  <p className="text-sm font-medium text-[var(--text-main)] mb-2">Serviços:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingOrder.services.map(s => (
+                      <span key={s} className="rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-2 py-1 text-xs font-bold">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {viewingOrder.notes && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 font-semibold text-[var(--text-main)]">
+                    <FileText className="h-4 w-4" />
+                    Observações
+                  </div>
+                  <div className="rounded-lg border border-[var(--border-color)] p-4 text-sm text-[var(--text-muted)] whitespace-pre-wrap">
+                    {viewingOrder.notes}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center gap-2 mb-2 font-semibold text-[var(--text-main)]">
+                  <History className="h-4 w-4" />
+                  Histórico de Status
+                </div>
+                <div className="space-y-3">
+                  {viewingOrder.statusHistory && viewingOrder.statusHistory.length > 0 ? (
+                    viewingOrder.statusHistory.map((h, i) => (
+                      <div key={i} className="flex gap-3 text-sm">
+                        <div className="flex flex-col items-center">
+                          <div className={`h-2 w-2 rounded-full mt-1.5 ${
+                            h.status === 'completed' ? 'bg-emerald-500' :
+                            h.status === 'in-progress' ? 'bg-blue-500' :
+                            h.status === 'awaiting-parts' ? 'bg-amber-500' :
+                            'bg-slate-400'
+                          }`} />
+                          {i < viewingOrder.statusHistory!.length - 1 && <div className="w-px flex-1 bg-slate-200 dark:bg-slate-800 my-1" />}
+                        </div>
+                        <div>
+                          <p className="font-medium text-[var(--text-main)]">{STATUS_LABELS[h.status]}</p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {h.date?.toDate ? format(h.date.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '-'}
+                          </p>
+                          {h.notes && <p className="mt-1 text-[var(--text-muted)] italic">"{h.notes}"</p>}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex gap-3 text-sm">
+                      <div className="h-2 w-2 rounded-full mt-1.5 bg-slate-400" />
+                      <div>
+                        <p className="font-medium text-[var(--text-main)]">{STATUS_LABELS[viewingOrder.status]}</p>
+                        <p className="text-xs text-[var(--text-muted)]">Status atual (sem histórico registrado)</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

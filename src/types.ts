@@ -28,6 +28,7 @@ export interface ServiceOrder {
   deadline?: any;
   warrantyDays?: number;
   status: OSStatus;
+  statusHistory?: { status: OSStatus; date: any; notes?: string }[];
   notes?: string;
   totalValue?: number;
   createdAt: any;
@@ -42,14 +43,28 @@ export interface Product {
   createdAt: any;
 }
 
-export interface Sale {
+export interface Category {
   id: string;
+  name: string;
+  createdAt: any;
+}
+
+export interface SaleItem {
   productId: string;
   productName: string;
   quantity: number;
+  price: number;
+}
+
+export interface Sale {
+  id: string;
+  items: SaleItem[];
   totalValue: number;
+  discount?: number;
   date: any;
   createdAt: any;
+  customerId?: string;
+  customerName?: string;
 }
 
 export interface Expense {

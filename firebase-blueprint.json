@@ -58,6 +58,7 @@
         "productName": { "type": "string" },
         "quantity": { "type": "integer" },
         "totalValue": { "type": "number" },
+        "discount": { "type": "number" },
         "date": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -86,6 +87,26 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["email", "role"]
+    },
+    "settings": {
+      "title": "Business Settings",
+      "description": "Global settings for the business",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "logoUrl": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "categories": {
+      "title": "Inventory Category",
+      "description": "A category for inventory products",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
     }
   },
   "firestore": {
@@ -93,6 +114,9 @@
     "/serviceOrders": { "schema": "serviceOrders", "description": "Collection of repair orders" },
     "/products": { "schema": "products", "description": "Collection of products for sale" },
     "/sales": { "schema": "sales", "description": "Collection of sales records" },
-    "/users": { "schema": "users", "description": "Collection of system users" }
+    "/expenses": { "schema": "expenses", "description": "Collection of business expenses" },
+    "/users": { "schema": "users", "description": "Collection of system users" },
+    "/settings": { "schema": "settings", "description": "Collection of business settings" },
+    "/categories": { "schema": "categories", "description": "Collection of inventory categories" }
   }
 }
