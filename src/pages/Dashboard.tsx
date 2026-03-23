@@ -195,14 +195,14 @@ export default function Dashboard() {
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
-        <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 border border-red-100 dark:border-red-900/30">
-          <div className="flex items-center gap-3 text-red-800 dark:text-red-200">
+        <div className="rounded-xl p-4 border border-red-500">
+          <div className="flex items-center gap-3 text-red-500">
             <AlertCircle className="h-5 w-5" />
             <h3 className="font-bold">Alerta de Estoque Baixo</h3>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {lowStockProducts.map(p => (
-              <div key={p.id} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium shadow-sm dark:bg-slate-800 text-[var(--text-main)] border border-[var(--border-color)]">
+              <div key={p.id} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium shadow-sm dark:bg-slate-800 text-white border border-[var(--border-color)]">
                 {p.name}: <span className="text-red-500 font-bold">{p.stock} un</span>
               </div>
             ))}
