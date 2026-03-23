@@ -12,6 +12,7 @@ export default function MotoboyDashboard() {
   const { user, profile, signOut } = useAuth();
   const [locations, setLocations] = useState<DeliveryLocation[]>([]);
   const [runs, setRuns] = useState<DeliveryRun[]>([]);
+  const [allPendingRuns, setAllPendingRuns] = useState<DeliveryRun[]>([]);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
@@ -45,14 +46,28 @@ export default function MotoboyDashboard() {
         setRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
       });
 
+      // Fetch ALL pending runs for this motoboy to calculate total balance
+      const qAllPending = query(
+        collection(db, 'deliveryRuns'),
+        where('motoboyId', '==', profile.motoboyId),
+        where('status', '==', 'pending')
+      );
+
+      const unsubscribeAllPending = onSnapshot(qAllPending, (snap) => {
+        setAllPendingRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
+      });
+
       return () => {
         unsubscribeLocations();
         unsubscribeRuns();
+        unsubscribeAllPending();
       };
     }
 
     return () => unsubscribeLocations();
   }, [profile.motoboyId, selectedDate]);
+
+  const totalPendingBalance = allPendingRuns.reduce((acc, run) => acc + (run.totalValue || (run.value * run.quantity)), 0);
 
   const handleAddRun = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,6 +168,28 @@ export default function MotoboyDashboard() {
         >
           <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="card p-4 flex items-center gap-4 bg-black border-yellow-400">
+          <div className="p-3 bg-yellow-400 text-black rounded-lg">
+            <DollarSign className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm text-zinc-400">Saldo Pendente Total</p>
+            <p className="text-2xl font-bold text-yellow-400">R$ {totalPendingBalance.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className="card p-4 flex items-center gap-4">
+          <div className="p-3 bg-blue-100 text-blue-600 rounded-lg dark:bg-blue-900/30 dark:text-blue-400">
+            <Bike className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-sm text-[var(--text-muted)]">Corridas Hoje</p>
+            <p className="text-2xl font-bold text-[var(--text-main)]">{runs.reduce((acc, r) => acc + (r.quantity || 1), 0)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Date Selector & Stats */}

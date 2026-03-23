@@ -29,14 +29,21 @@ import MotoboyDashboard from './pages/MotoboyDashboard';
 import MotoboyLogin from './pages/MotoboyLogin';
 import Layout from './components/Layout';
 import { SettingsProvider } from './contexts/SettingsContext';
+import PWAUpdateNotification from './components/PWAUpdateNotification';
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, profile: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ 
+  user: null, 
+  profile: null, 
+  loading: true,
+  signOut: async () => {} 
+});
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -44,6 +51,16 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   useEffect(() => {
     // Test connection to Firestore
@@ -121,7 +138,8 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SettingsProvider>
-        <AuthContext.Provider value={{ user, profile, loading }}>
+        <PWAUpdateNotification />
+        <AuthContext.Provider value={{ user, profile, loading, signOut: handleSignOut }}>
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
