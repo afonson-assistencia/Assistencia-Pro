@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { DeliveryLocation, DeliveryRun, DeliveryStatus, Motoboy } from '../types';
-import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
@@ -78,6 +78,8 @@ export default function DeliveryManagement() {
   
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedMotoboy, setSelectedMotoboy] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<DeliveryStatus | 'all'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   if (profile?.role === 'motoboy') {
     return <Navigate to="/motoboy-dashboard" />;
@@ -199,7 +201,10 @@ export default function DeliveryManagement() {
   const filteredRuns = runs.filter(run => {
     const matchesDate = run.date === filterDate;
     const matchesMotoboy = selectedMotoboy === 'all' || run.motoboyName === selectedMotoboy;
-    return matchesDate && matchesMotoboy;
+    const matchesStatus = statusFilter === 'all' || run.status === statusFilter;
+    const matchesSearch = run.motoboyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         run.locationName.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesDate && matchesMotoboy && matchesStatus && matchesSearch;
   });
 
   const totalValue = filteredRuns
@@ -283,13 +288,34 @@ export default function DeliveryManagement() {
               <Calendar className="h-5 w-5" />
               Controle de Corridas
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  type="text"
+                  placeholder="Buscar motoboy ou local..."
+                  className="input pl-10 text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
               <input
                 type="date"
                 className="input text-sm"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
               />
+              <select
+                className="input text-sm"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+              >
+                <option value="all">Todos Status</option>
+                <option value="pending">Pendentes</option>
+                <option value="approved">Aprovadas</option>
+                <option value="paid">Pagas</option>
+                <option value="rejected">Rejeitadas</option>
+              </select>
               <select
                 className="input text-sm"
                 value={selectedMotoboy}

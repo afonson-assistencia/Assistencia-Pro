@@ -16,6 +16,7 @@ export default function MotoboyDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [runValue, setRunValue] = useState('0');
   const [quantity, setQuantity] = useState('1');
   const [tempRuns, setTempRuns] = useState<{locationId: string, locationName: string, value: number, quantity: number}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,7 +64,7 @@ export default function MotoboyDashboard() {
         finalRuns.push({
           locationId: location.id,
           locationName: location.name,
-          value: location.value,
+          value: parseFloat(runValue),
           quantity: parseInt(quantity)
         });
       }
@@ -109,10 +110,11 @@ export default function MotoboyDashboard() {
       setTempRuns([...tempRuns, {
         locationId: location.id,
         locationName: location.name,
-        value: location.value,
+        value: parseFloat(runValue),
         quantity: parseInt(quantity)
       }]);
       setSelectedLocationId('');
+      setRunValue('0');
       setQuantity('1');
     }
   };
@@ -271,7 +273,14 @@ export default function MotoboyDashboard() {
                 <select
                   className="input w-full text-base"
                   value={selectedLocationId}
-                  onChange={(e) => setSelectedLocationId(e.target.value)}
+                  onChange={(e) => {
+                    const locId = e.target.value;
+                    setSelectedLocationId(locId);
+                    const location = locations.find(l => l.id === locId);
+                    if (location) {
+                      setRunValue(location.value.toString());
+                    }
+                  }}
                 >
                   <option value="">Selecione o local...</option>
                   {locations.map(loc => (
@@ -280,6 +289,20 @@ export default function MotoboyDashboard() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Valor da Corrida (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="input w-full text-lg font-bold"
+                  value={runValue}
+                  onChange={(e) => setRunValue(e.target.value)}
+                />
               </div>
 
               <div className="space-y-2">
