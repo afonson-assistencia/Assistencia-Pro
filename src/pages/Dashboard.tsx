@@ -189,8 +189,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
-        <p className="text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
+        <p className="text-sm sm:text-base text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
       </div>
 
       {/* Low Stock Alert */}
@@ -215,9 +215,9 @@ export default function Dashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[var(--text-muted)]">Faturamento Hoje</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.todayRevenue.toFixed(2)}</p>
-              <div className="mt-1 flex gap-2 text-[10px] text-[var(--text-muted)]">
+              <p className="text-xs sm:text-sm font-medium text-[var(--text-muted)]">Faturamento Hoje</p>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">R$ {stats.todayRevenue.toFixed(2)}</p>
+              <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
                 <span>OS: R$ {stats.todayOSRevenue.toFixed(2)}</span>
                 <span>Vendas: R$ {stats.todaySalesRevenue.toFixed(2)}</span>
               </div>
@@ -368,14 +368,14 @@ export default function Dashboard() {
 
 function StatCard({ title, value, icon: Icon, color, bg }: any) {
   return (
-    <div className="card p-6">
+    <div className="card p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-[var(--text-muted)]">{title}</p>
-          <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">{value}</p>
+          <p className="text-xs sm:text-sm font-medium text-[var(--text-muted)]">{title}</p>
+          <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">{value}</p>
         </div>
         <div className={`rounded-lg p-2 ${bg} dark:bg-opacity-20 ${color}`}>
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
       </div>
     </div>
@@ -386,10 +386,10 @@ function QuickActionLink({ to, label, icon: Icon }: any) {
   return (
     <Link
       to={to}
-      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] p-4 transition-all hover:bg-[var(--bg-main)] hover:shadow-md group"
+      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-[var(--border-color)] p-3 sm:p-4 transition-all hover:bg-[var(--bg-main)] hover:shadow-md group"
     >
-      <Icon className="h-6 w-6 text-[var(--text-muted)] group-hover:text-[var(--text-main)]" />
-      <span className="text-sm font-medium text-[var(--text-muted)] group-hover:text-[var(--text-main)]">{label}</span>
+      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--text-muted)] group-hover:text-[var(--text-main)]" />
+      <span className="text-xs sm:text-sm font-medium text-[var(--text-muted)] group-hover:text-[var(--text-main)] text-center">{label}</span>
     </Link>
   );
 }

@@ -6,14 +6,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import React, { Component, ErrorInfo, ReactNode, useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import { getDocFromServer } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './utils/firestoreErrorHandler';
 
-// Pages
+import { ErrorBoundary } from './components/ErrorBoundary';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
@@ -38,53 +39,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({ user: null, profile: null, loading: true });
 
 export const useAuth = () => useContext(AuthContext);
-
-// Error Boundary Component
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4 text-center">
-          <div className="max-w-md rounded-2xl bg-white p-8 shadow-xl">
-            <div className="mb-4 flex justify-center">
-              <div className="rounded-full bg-red-100 p-3 text-red-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              </div>
-            </div>
-            <h1 className="mb-2 text-2xl font-bold text-slate-900">Ops! Algo deu errado</h1>
-            <p className="mb-6 text-slate-600">
-              Ocorreu um erro inesperado. Por favor, tente recarregar a página.
-            </p>
-            <div className="mb-6 overflow-hidden rounded-lg bg-slate-100 p-4 text-left text-xs font-mono text-slate-700">
-              {this.state.error?.message}
-            </div>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition-all hover:bg-slate-800 active:scale-95"
-            >
-              Recarregar Página
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -174,18 +128,18 @@ export default function App() {
               <Route path="/motoboy-login" element={!user ? <MotoboyLogin /> : <Navigate to="/" />} />
               <Route
                 path="/"
-                element={user ? <Layout /> : <Navigate to="/login" />}
+                element={user ? <Layout /> : <Landing />}
               >
                 <Route index element={profile?.role === 'motoboy' ? <Navigate to="/motoboy-dashboard" /> : <Dashboard />} />
-                <Route path="customers" element={<Customers />} />
-                <Route path="service-orders" element={<ServiceOrders />} />
-                <Route path="inventory" element={<Inventory />} />
-                <Route path="sales" element={<Sales />} />
-                <Route path="expenses" element={<Expenses />} />
-                <Route path="cash-closure" element={<CashClosure />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="delivery-management" element={<DeliveryManagement />} />
-                <Route path="motoboy-dashboard" element={<MotoboyDashboard />} />
+                <Route path="customers" element={user ? <Customers /> : <Navigate to="/login" />} />
+                <Route path="service-orders" element={user ? <ServiceOrders /> : <Navigate to="/login" />} />
+                <Route path="inventory" element={user ? <Inventory /> : <Navigate to="/login" />} />
+                <Route path="sales" element={user ? <Sales /> : <Navigate to="/login" />} />
+                <Route path="expenses" element={user ? <Expenses /> : <Navigate to="/login" />} />
+                <Route path="cash-closure" element={user ? <CashClosure /> : <Navigate to="/login" />} />
+                <Route path="settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+                <Route path="delivery-management" element={user ? <DeliveryManagement /> : <Navigate to="/login" />} />
+                <Route path="motoboy-dashboard" element={user ? <MotoboyDashboard /> : <Navigate to="/login" />} />
               </Route>
             </Routes>
           </BrowserRouter>

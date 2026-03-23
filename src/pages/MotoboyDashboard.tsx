@@ -17,6 +17,7 @@ export default function MotoboyDashboard() {
   
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [tempRuns, setTempRuns] = useState<{locationId: string, locationName: string, value: number, quantity: number}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!user || profile?.role !== 'motoboy') {
@@ -54,35 +55,70 @@ export default function MotoboyDashboard() {
 
   const handleAddRun = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLocationId || !quantity || isSubmitting) return;
+    
+    const finalRuns = [...tempRuns];
+    if (selectedLocationId) {
+      const location = locations.find(l => l.id === selectedLocationId);
+      if (location) {
+        finalRuns.push({
+          locationId: location.id,
+          locationName: location.name,
+          value: location.value,
+          quantity: parseInt(quantity)
+        });
+      }
+    }
 
-    const location = locations.find(l => l.id === selectedLocationId);
-    if (!location) return;
+    if (finalRuns.length === 0 || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      const qty = parseInt(quantity);
-      await addDoc(collection(db, 'deliveryRuns'), {
-        motoboyId: profile.motoboyId,
-        motoboyName: profile.name,
-        locationId: location.id,
-        locationName: location.name,
-        value: location.value,
-        quantity: qty,
-        totalValue: location.value * qty,
-        status: 'pending',
-        date: selectedDate,
-        createdAt: serverTimestamp()
-      });
+      const promises = finalRuns.map(run => 
+        addDoc(collection(db, 'deliveryRuns'), {
+          motoboyId: profile.motoboyId,
+          motoboyName: profile.name,
+          locationId: run.locationId,
+          locationName: run.locationName,
+          value: run.value,
+          quantity: run.quantity,
+          totalValue: run.value * run.quantity,
+          status: 'pending',
+          date: selectedDate,
+          createdAt: serverTimestamp()
+        })
+      );
+
+      await Promise.all(promises);
+      
       setIsAddModalOpen(false);
       setSelectedLocationId('');
       setQuantity('1');
+      setTempRuns([]);
     } catch (error) {
-      console.error('Error adding run:', error);
-      alert('Erro ao salvar corrida. Tente novamente.');
+      console.error('Error adding runs:', error);
+      alert('Erro ao salvar corridas. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const addToTempList = () => {
+    if (!selectedLocationId) return;
+    const location = locations.find(l => l.id === selectedLocationId);
+    if (location) {
+      setTempRuns([...tempRuns, {
+        locationId: location.id,
+        locationName: location.name,
+        value: location.value,
+        quantity: parseInt(quantity)
+      }]);
+      setSelectedLocationId('');
+      setQuantity('1');
+    }
+  };
+
+  const removeFromTempList = (index: number) => {
+    setTempRuns(tempRuns.filter((_, i) => i !== index));
   };
 
   const totalEarned = runs
@@ -94,14 +130,14 @@ export default function MotoboyDashboard() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between bg-[var(--bg-card)] p-3 sm:p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="p-2 bg-blue-100 text-blue-600 rounded-full">
-            <Bike className="h-6 w-6" />
+            <Bike className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-tight">{profile.name}</h1>
-            <p className="text-xs text-[var(--text-muted)]">Motoboy Parceiro</p>
+            <h1 className="font-bold text-base sm:text-lg leading-tight">{profile.name}</h1>
+            <p className="text-[10px] sm:text-xs text-[var(--text-muted)]">Motoboy Parceiro</p>
           </div>
         </div>
         <button 
@@ -109,7 +145,7 @@ export default function MotoboyDashboard() {
           className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
           title="Sair"
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
       </div>
 
@@ -122,19 +158,19 @@ export default function MotoboyDashboard() {
           </label>
           <input
             type="date"
-            className="input w-full"
+            className="input w-full text-sm sm:text-base"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="card p-4 flex flex-col justify-center items-center text-center">
-            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Ganhos</p>
-            <p className="text-2xl font-bold text-emerald-600">R$ {totalEarned.toFixed(2)}</p>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
+            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Ganhos</p>
+            <p className="text-xl sm:text-2xl font-bold text-emerald-600">R$ {totalEarned.toFixed(2)}</p>
           </div>
-          <div className="card p-4 flex flex-col justify-center items-center text-center">
-            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Pendentes</p>
-            <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
+          <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
+            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Pendentes</p>
+            <p className="text-xl sm:text-2xl font-bold text-yellow-600">{pendingCount}</p>
           </div>
         </div>
       </div>
@@ -195,7 +231,7 @@ export default function MotoboyDashboard() {
           ) : (
             <div className="card p-12 text-center">
               <div className="bg-slate-50 dark:bg-slate-800/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="h-8 w-8 text-[var(--text-muted)] opacity-20" />
+                <MapPin className="h-8 w-8 text-white" />
               </div>
               <p className="text-[var(--text-muted)]">Nenhuma corrida lançada para este dia.</p>
             </div>
@@ -221,8 +257,7 @@ export default function MotoboyDashboard() {
                   Local da Entrega
                 </label>
                 <select
-                  required
-                  className="input w-full text-base py-3"
+                  className="input w-full text-base"
                   value={selectedLocationId}
                   onChange={(e) => setSelectedLocationId(e.target.value)}
                 >
@@ -244,14 +279,13 @@ export default function MotoboyDashboard() {
                   <button
                     type="button"
                     onClick={() => setQuantity(q => Math.max(1, parseInt(q) - 1).toString())}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-slate-50 dark:bg-slate-800 text-xl font-bold"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-[var(--border-color)] btn btn-primary text-xl font-bold"
                   >
                     -
                   </button>
                   <input
                     type="number"
                     min="1"
-                    required
                     className="input flex-1 text-center text-xl font-bold py-3"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
@@ -259,19 +293,56 @@ export default function MotoboyDashboard() {
                   <button
                     type="button"
                     onClick={() => setQuantity(q => (parseInt(q) + 1).toString())}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-slate-50 dark:bg-slate-800 text-xl font-bold"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-[var(--border-color)] btn btn-primary text-xl font-bold"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {selectedLocationId && (
+              <button
+                type="button"
+                onClick={addToTempList}
+                disabled={!selectedLocationId}
+                className="btn btn-secondary w-full py-3 flex items-center justify-center gap-2 border-dashed border-2"
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar à Lista
+              </button>
+
+              {tempRuns.length > 0 && (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  <p className="text-xs font-bold text-[var(--text-muted)] uppercase">Itens na Lista:</p>
+                  {tempRuns.map((run, index) => (
+                    <div key={index} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg text-sm border border-[var(--border-color)]">
+                      <div className="flex-1">
+                        <p className="font-bold">{run.locationName}</p>
+                        <p className="text-xs text-[var(--text-muted)]">{run.quantity}x R$ {run.value.toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="font-bold text-blue-600">R$ {(run.value * run.quantity).toFixed(2)}</p>
+                        <button 
+                          type="button"
+                          onClick={() => removeFromTempList(index)}
+                          className="text-red-500 p-1"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(selectedLocationId || tempRuns.length > 0) && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Valor Total Estimado:</span>
+                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Valor Total:</span>
                     <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                      R$ {( (locations.find(l => l.id === selectedLocationId)?.value || 0) * parseInt(quantity || '0') ).toFixed(2)}
+                      R$ {(
+                        (tempRuns.reduce((acc, r) => acc + (r.value * r.quantity), 0)) +
+                        ((locations.find(l => l.id === selectedLocationId)?.value || 0) * parseInt(quantity || '0'))
+                      ).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -280,18 +351,21 @@ export default function MotoboyDashboard() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setTempRuns([]);
+                  }}
                   className="btn btn-secondary flex-1 py-4"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit" 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (tempRuns.length === 0 && !selectedLocationId)}
                   className="btn btn-primary flex-1 py-4 shadow-lg shadow-blue-500/30 gap-2"
                 >
                   {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
-                  {isSubmitting ? 'Salvando...' : 'Confirmar'}
+                  {isSubmitting ? 'Salvando...' : 'Confirmar Tudo'}
                 </button>
               </div>
             </form>

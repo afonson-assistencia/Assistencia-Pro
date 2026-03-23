@@ -88,17 +88,15 @@ export default function Login() {
       <div className="absolute top-6 right-6 z-20">
         <button 
           onClick={toggleTheme} 
-          className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-slate-100 dark:hover:bg-slate-800 bg-[var(--bg-card)] shadow-md border border-[var(--border-color)] transition-all"
+          className="flex items-center gap-2 rounded-full p-3 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-card)] shadow-md border border-[var(--border-color)] transition-all"
         >
           {theme === 'light' ? (
             <>
               <Moon className="h-4 w-4" />
-              <span>Modo Escuro</span>
             </>
           ) : (
             <>
               <Sun className="h-4 w-4" />
-              <span>Modo Claro</span>
             </>
           )}
         </button>
@@ -121,10 +119,10 @@ export default function Login() {
             />
           </div>
         ))}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-12">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6 sm:p-12">
           <div className="text-white">
-            <h1 className="text-4xl font-bold mb-4">Gestão Simplificada</h1>
-            <p className="text-lg opacity-90">Controle seu estoque, vendas e ordens de serviço em um só lugar.</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4">Gestão Simplificada</h1>
+            <p className="text-sm sm:text-base lg:text-lg opacity-90">Controle seu estoque, vendas e ordens de serviço em um só lugar.</p>
           </div>
         </div>
         
@@ -143,16 +141,16 @@ export default function Login() {
 
       {/* Right Side: Login Form */}
       <div className="flex w-full items-center justify-center p-8 lg:w-1/2 bg-[var(--bg-main)]">
-        <div className="w-full max-w-md space-y-8 rounded-2xl p-8 shadow-xl ">
+        <div className="w-full max-w-md space-y-8">
           <div className="text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden border border-[var(--border-color)]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-[var(--bg-main)] text-[var(--text-main)] overflow-hidden">
               {settings.logoUrl ? (
                 <img src={settings.logoUrl} alt="Logo" className="h-full w-full object-contain p-2" />
               ) : (
                 <ShieldCheck className="h-10 w-10" />
               )}
             </div>
-            <h2 className="mt-6 text-3xl font-bold tracking-tight text-[var(--text-main)]">
+            <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)]">
               {settings.name}
             </h2>
             <p className="mt-2 text-sm text-[var(--text-muted)]">

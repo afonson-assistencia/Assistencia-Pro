@@ -192,18 +192,18 @@ export default function Sales() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Vendas</h1>
-          <p className="text-[var(--text-muted)]">Histórico de vendas de acessórios.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Vendas</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Histórico de vendas de acessórios.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2">
+        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2 w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Nova Venda
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row">
+      <div className="flex flex-col gap-4 sm:flex-row">
         <div className="flex-1">
           <div className="flex h-11 items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 shadow-sm">
             <Calendar className="h-4 w-4 text-[var(--text-muted)]" />
@@ -264,8 +264,8 @@ export default function Sales() {
           </div>
         </div>
 
-        <div className="card overflow-hidden lg:col-span-2">
-          <div className="overflow-x-auto">
+        <div className="card overflow-x-auto lg:col-span-2">
+          <div className="min-w-[700px] lg:min-w-0">
             <table className="w-full text-left text-sm">
               <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
                 <tr>

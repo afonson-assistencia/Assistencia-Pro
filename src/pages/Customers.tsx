@@ -170,12 +170,12 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Clientes</h1>
-          <p className="text-[var(--text-muted)]">Gerencie sua base de clientes.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Clientes</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie sua base de clientes.</p>
         </div>
-        <button onClick={() => openModal()} className="btn btn-primary gap-2">
+        <button onClick={() => openModal()} className="btn btn-primary gap-2 w-full sm:w-auto">
           <UserPlus className="h-4 w-4" />
           Novo Cliente
         </button>
@@ -201,8 +201,8 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-left text-sm">
+      <div className="card overflow-x-auto">
+        <table className="w-full text-left text-sm min-w-[600px] sm:min-w-0">
           <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
             <tr>
               <th className="px-6 py-3 font-semibold">Nome</th>

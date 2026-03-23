@@ -211,17 +211,17 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Estoque</h1>
-          <p className="text-[var(--text-muted)]">Gerencie seus acessórios e peças.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Estoque</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie seus acessórios e peças.</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary gap-2 flex-1 sm:flex-none">
             <Settings2 className="h-4 w-4" />
             <span className="hidden sm:inline">Categorias</span>
           </button>
-          <button onClick={() => openModal()} className="btn btn-primary gap-2">
+          <button onClick={() => openModal()} className="btn btn-primary gap-2 flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Novo Produto</span>
             <span className="sm:hidden">Novo</span>
@@ -243,39 +243,39 @@ export default function Inventory() {
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="card p-6">
-          <div className="flex items-center gap-4">
-            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 text-blue-600 dark:text-blue-400">
-              <Package className="h-6 w-6" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="card p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2.5 sm:p-3 text-blue-600 dark:text-blue-400">
+              <Package className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-[var(--text-muted)]">Itens Encontrados</p>
-              <p className="text-2xl font-bold text-[var(--text-main)]">{filteredProducts.length}</p>
+              <p className="text-xs sm:text-sm font-medium text-[var(--text-muted)]">Itens Encontrados</p>
+              <p className="text-lg sm:text-2xl font-bold text-[var(--text-main)]">{filteredProducts.length}</p>
             </div>
           </div>
         </div>
-        <div className="card p-6">
-          <div className="flex items-center gap-4">
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-red-600 dark:text-red-400">
-              <AlertTriangle className="h-6 w-6" />
+        <div className="card p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5 sm:p-3 text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-[var(--text-muted)]">Estoque Baixo (Filtro)</p>
-              <p className="text-2xl font-bold text-[var(--text-main)]">
+              <p className="text-xs sm:text-sm font-medium text-[var(--text-muted)]">Estoque Baixo (Filtro)</p>
+              <p className="text-lg sm:text-2xl font-bold text-[var(--text-main)]">
                 {filteredProducts.filter(p => p.stock <= 5).length}
               </p>
             </div>
           </div>
         </div>
-        <div className="card p-6">
-          <div className="flex items-center gap-4">
-            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-3 text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="h-6 w-6" />
+        <div className="card p-4 sm:p-6">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-2.5 sm:p-3 text-emerald-600 dark:text-emerald-400">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-[var(--text-muted)]">Valor em Estoque (Filtro)</p>
-              <p className="text-2xl font-bold text-[var(--text-main)]">
+              <p className="text-xs sm:text-sm font-medium text-[var(--text-muted)]">Valor em Estoque (Filtro)</p>
+              <p className="text-lg sm:text-2xl font-bold text-[var(--text-main)]">
                 R$ {filteredProducts.reduce((acc, p) => acc + (p.price * p.stock), 0).toFixed(2)}
               </p>
             </div>

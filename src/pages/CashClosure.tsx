@@ -113,26 +113,26 @@ export default function CashClosure() {
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Fechamento de Caixa</h1>
-          <p className="text-[var(--text-muted)]">Resumo financeiro diário.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Fechamento de Caixa</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Resumo financeiro diário.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 shadow-sm">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+          <div className="flex flex-1 sm:flex-none items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 shadow-sm">
             <Calendar className="h-4 w-4 text-[var(--text-muted)]" />
             <input
               type="date"
-              className="border-none bg-transparent p-0 text-sm font-medium focus:ring-0 text-[var(--text-main)]"
+              className="border-none bg-transparent p-0 text-sm font-medium focus:ring-0 text-[var(--text-main)] w-full sm:w-auto"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
-          <button onClick={handleWhatsAppShare} className="btn bg-emerald-500 text-white hover:bg-emerald-600 gap-2">
+          <button onClick={handleWhatsAppShare} className="btn bg-emerald-500 text-white hover:bg-emerald-600 gap-2 flex-1 sm:flex-none justify-center">
             <MessageSquare className="h-4 w-4" />
-            WhatsApp
+            <span className="hidden xs:inline">WhatsApp</span>
           </button>
-          <button onClick={handlePrint} className="btn btn-secondary gap-2">
+          <button onClick={handlePrint} className="btn btn-secondary gap-2 flex-1 sm:flex-none justify-center">
             <Printer className="h-4 w-4" />
-            Imprimir
+            <span className="hidden xs:inline">Imprimir</span>
           </button>
         </div>
       </div>

@@ -104,23 +104,17 @@ export default function MotoboyLogin() {
 
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-12">
-        <button
-          onClick={toggleTheme}
-          className="fixed top-6 right-6 p-3 rounded-full bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:scale-110 transition-transform z-10"
-        >
-          {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-        </button>
 
         <div className="w-full max-w-md">
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/20 mb-6">
-              <Bike className="h-12 w-12 text-white" />
+          <div className="text-center mb-8 sm:mb-10">
+            <div className="inline-flex items-center justify-center p-3 sm:p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/20 mb-4 sm:mb-6">
+              <Bike className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Área do Motoboy</h1>
-            <p className="text-[var(--text-muted)] mt-3 text-lg">Bem-vindo de volta! Digite seu nome para entrar.</p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Área do Motoboy</h1>
+            <p className="text-sm sm:text-lg text-white mt-2 sm:mt-3">Bem-vindo de volta! Digite seu nome para entrar.</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800">
+          <div className=" p-6 sm:p-10">
             {error && (
               <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl flex flex-col gap-3 text-red-600 dark:text-red-400">
                 <div className="flex items-center gap-3 text-sm font-semibold">
@@ -144,7 +138,7 @@ export default function MotoboyLogin() {
 
             <form onSubmit={handleLogin} className="space-y-8">
               <div>
-                <label className="block text-sm font-bold text-[var(--text-main)] mb-3 uppercase tracking-wider">Seu Nome Completo</label>
+                <label className="block text-sm font-bold text-white mb-3 uppercase tracking-wider">Seu Nome</label>
                 <div className="relative">
                   <User className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
                   <input
@@ -175,7 +169,7 @@ export default function MotoboyLogin() {
             </form>
 
             <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-center text-sm text-[var(--text-muted)]">
+              <p className="text-center text-sm text-white">
                 Não é motoboy? <button onClick={() => navigate('/login')} className="text-blue-600 font-bold hover:underline">Acesso Administrativo</button>
               </p>
             </div>

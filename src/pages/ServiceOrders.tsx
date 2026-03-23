@@ -281,37 +281,38 @@ Obrigado pela preferência!`;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Ordens de Serviço</h1>
-          <p className="text-[var(--text-muted)]">Gerencie os consertos em andamento.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Ordens de Serviço</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie os consertos em andamento.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-1 mr-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-1 flex-1 sm:flex-none justify-center">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              className={`p-1.5 rounded-md transition-colors flex-1 sm:flex-none flex justify-center ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
               title="Visualização em Grade"
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              className={`p-1.5 rounded-md transition-colors flex-1 sm:flex-none flex justify-center ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
               title="Visualização em Tabela"
             >
               <List className="h-4 w-4" />
             </button>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2">
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2 flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
-            Nova O.S.
+            <span className="hidden sm:inline">Nova O.S.</span>
+            <span className="sm:hidden">Nova</span>
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row items-center">
-        <div className="flex-1 w-full md:w-64">
+      <div className="flex flex-col gap-4 sm:flex-row items-center">
+        <div className="flex-1 w-full">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
@@ -323,11 +324,11 @@ Obrigado pela preferência!`;
             />
           </div>
         </div>
-        <div className="w-full md:w-64 input">
+        <div className="w-full sm:w-64 input">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-[var(--text-muted)]" />
             <select
-              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)]"
+              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
             >

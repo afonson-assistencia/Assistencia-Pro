@@ -92,15 +92,17 @@ export default function Settings() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-main)]">Configurações</h1>
-        <p className="text-[var(--text-muted)]">Personalize a identidade da sua assistência e gerencie usuários.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Configurações</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Personalize a identidade da sua assistência e gerencie usuários.</p>
+        </div>
       </div>
 
-      <div className="flex gap-4 border-b border-[var(--border-color)]">
+      <div className="flex gap-2 sm:gap-4 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('general')}
-          className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
             activeTab === 'general' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
           }`}
         >
@@ -109,7 +111,7 @@ export default function Settings() {
         </button>
         <button
           onClick={() => setActiveTab('users')}
-          className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
             activeTab === 'users' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
           }`}
         >
@@ -202,8 +204,8 @@ export default function Settings() {
       </div>
       ) : (
         <div className="space-y-4">
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="card overflow-x-auto">
+            <div className="min-w-[600px] lg:min-w-0">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>

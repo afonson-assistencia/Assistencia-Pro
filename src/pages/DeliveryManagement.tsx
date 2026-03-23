@@ -215,16 +215,16 @@ export default function DeliveryManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Gestão de Entregas</h1>
-          <p className="text-[var(--text-muted)]">Gerencie motoboys, locais e aprove corridas.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Gestão de Entregas</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie motoboys, locais e aprove corridas.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           {activeTab === 'locations' && (
             <button
               onClick={openNewLocationModal}
-              className="btn btn-primary flex items-center gap-2"
+              className="btn btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none"
             >
               <Plus className="h-4 w-4" />
               Novo Local
@@ -233,7 +233,7 @@ export default function DeliveryManagement() {
           {activeTab === 'motoboys' && (
             <button
               onClick={() => setIsMotoboyModalOpen(true)}
-              className="btn btn-primary flex items-center gap-2"
+              className="btn btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none"
             >
               <UserPlus className="h-4 w-4" />
               Novo Motoboy
@@ -242,10 +242,10 @@ export default function DeliveryManagement() {
         </div>
       </div>
 
-      <div className="flex gap-4 border-b border-[var(--border-color)]">
+      <div className="flex gap-2 sm:gap-4 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('runs')}
-          className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
             activeTab === 'runs' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
           }`}
         >
@@ -254,7 +254,7 @@ export default function DeliveryManagement() {
         </button>
         <button
           onClick={() => setActiveTab('locations')}
-          className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
             activeTab === 'locations' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
           }`}
         >
@@ -263,7 +263,7 @@ export default function DeliveryManagement() {
         </button>
         <button
           onClick={() => setActiveTab('motoboys')}
-          className={`pb-2 px-4 text-sm font-medium transition-colors relative ${
+          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
             activeTab === 'motoboys' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
           }`}
         >
@@ -320,8 +320,8 @@ export default function DeliveryManagement() {
             </div>
           </div>
 
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="card overflow-x-auto">
+            <div className="min-w-[600px] lg:min-w-0">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>

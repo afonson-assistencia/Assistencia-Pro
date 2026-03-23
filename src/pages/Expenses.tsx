@@ -91,12 +91,12 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Despesas</h1>
-          <p className="text-[var(--text-muted)]">Controle seus gastos e custos operacionais.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Despesas</h1>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Controle seus gastos e custos operacionais.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2">
+        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2 w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Nova Despesa
         </button>
@@ -119,8 +119,9 @@ export default function Expenses() {
           </div>
         </div>
 
-        <div className="card overflow-hidden lg:col-span-2">
-          <table className="w-full text-left text-sm">
+        <div className="card overflow-x-auto lg:col-span-2">
+          <div className="min-w-[600px] lg:min-w-0">
+            <table className="w-full text-left text-sm">
             <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
               <tr>
                 <th className="px-6 py-3 font-semibold">Descrição</th>
@@ -165,8 +166,9 @@ export default function Expenses() {
           </table>
         </div>
       </div>
+    </div>
 
-      {/* Modal Confirmação de Exclusão */}
+    {/* Modal Confirmação de Exclusão */}
       {deletingExpense && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)]">
