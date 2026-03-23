@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ServiceOrder, Sale, Expense } from '../types';
+import { ServiceOrder, Sale, Expense, DeliveryRun } from '../types';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, DollarSign, TrendingUp, TrendingDown, Wallet, Printer, ClipboardList, ShoppingBag, Receipt, MessageSquare } from 'lucide-react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, Wallet, Printer, ClipboardList, ShoppingBag, Receipt, MessageSquare, Bike } from 'lucide-react';
 
 export default function CashClosure() {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -13,14 +13,17 @@ export default function CashClosure() {
     osRevenue: 0,
     salesRevenue: 0,
     expenses: 0,
+    deliveryExpenses: 0,
     totalRevenue: 0,
     netProfit: 0,
     osCount: 0,
     salesCount: 0,
     expenseCount: 0,
+    deliveryCount: 0,
     osList: [] as ServiceOrder[],
     salesList: [] as Sale[],
     expenseList: [] as Expense[],
+    deliveryList: [] as DeliveryRun[],
   });
 
   useEffect(() => {
@@ -33,19 +36,18 @@ export default function CashClosure() {
       const start = startOfDay(new Date(date + 'T12:00:00'));
       const end = endOfDay(new Date(date + 'T12:00:00'));
 
-      const [osSnap, salesSnap, expSnap] = await Promise.all([
-        getDocs(query(collection(db, 'serviceOrders'), where('createdAt', '>=', Timestamp.fromDate(start)), where('createdAt', '<=', Timestamp.fromDate(end)))),
+      const [osSnap, salesSnap, expSnap, deliverySnap] = await Promise.all([
+        getDocs(query(collection(db, 'serviceOrders'), where('deliveredAt', '>=', Timestamp.fromDate(start)), where('deliveredAt', '<=', Timestamp.fromDate(end)))),
         getDocs(query(collection(db, 'sales'), where('date', '>=', Timestamp.fromDate(start)), where('date', '<=', Timestamp.fromDate(end)))),
-        getDocs(query(collection(db, 'expenses'), where('date', '>=', Timestamp.fromDate(start)), where('date', '<=', Timestamp.fromDate(end))))
+        getDocs(query(collection(db, 'expenses'), where('date', '>=', Timestamp.fromDate(start)), where('date', '<=', Timestamp.fromDate(end)))),
+        getDocs(query(collection(db, 'deliveryRuns'), where('paidAt', '>=', Timestamp.fromDate(start)), where('paidAt', '<=', Timestamp.fromDate(end))))
       ]);
 
       let osRev = 0;
       const osList: ServiceOrder[] = [];
       osSnap.forEach(doc => {
         const d = { id: doc.id, ...doc.data() } as ServiceOrder;
-        if (d.status === 'delivered' || d.status === 'ready') {
-          osRev += d.totalValue || 0;
-        }
+        osRev += d.totalValue || 0;
         osList.push(d);
       });
 
@@ -65,18 +67,29 @@ export default function CashClosure() {
         expenseList.push(d);
       });
 
+      let deliveryTotal = 0;
+      const deliveryList: DeliveryRun[] = [];
+      deliverySnap.forEach(doc => {
+        const d = { id: doc.id, ...doc.data() } as DeliveryRun;
+        deliveryTotal += d.totalValue || d.value || 0;
+        deliveryList.push(d);
+      });
+
       setData({
         osRevenue: osRev,
         salesRevenue: salesRev,
         expenses: expTotal,
+        deliveryExpenses: deliveryTotal,
         totalRevenue: osRev + salesRev,
-        netProfit: (osRev + salesRev) - expTotal,
+        netProfit: (osRev + salesRev) - (expTotal + deliveryTotal),
         osCount: osSnap.size,
         salesCount: salesSnap.size,
         expenseCount: expSnap.size,
+        deliveryCount: deliverySnap.size,
         osList,
         salesList,
         expenseList,
+        deliveryList,
       });
     } catch (error) {
       console.error('Error fetching closure data:', error);
@@ -98,12 +111,14 @@ export default function CashClosure() {
 💰 Entradas (OS): R$ ${data.osRevenue.toFixed(2)}
 🛒 Entradas (Vendas): R$ ${data.salesRevenue.toFixed(2)}
 📉 Saídas (Despesas): R$ ${data.expenses.toFixed(2)}
+🏍️ Saídas (Entregas): R$ ${data.deliveryExpenses.toFixed(2)}
 📊 *Saldo Líquido: R$ ${data.netProfit.toFixed(2)}*
 
 *Movimentação:*
 🛠️ Serviços: ${data.osCount}
 🛍️ Vendas: ${data.salesCount}
-💸 Despesas: ${data.expenseCount}`;
+💸 Despesas: ${data.expenseCount}
+🏍️ Entregas: ${data.deliveryCount}`;
 
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
@@ -183,7 +198,18 @@ export default function CashClosure() {
                 </div>
               </div>
             </div>
-            <div className="card p-6 border-l-4 border-slate-900 dark:border-slate-100">
+            <div className="card p-6 border-l-4 border-orange-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-muted)]">Saídas (Entregas)</p>
+                  <p className="mt-1 text-xl font-bold text-[var(--text-main)]">R$ {data.deliveryExpenses.toFixed(2)}</p>
+                </div>
+                <div className="rounded-lg bg-orange-50 p-2 text-orange-600 dark:bg-orange-900/20">
+                  <Bike className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+            <div className="card p-6 border-l-4 border-slate-900 dark:border-slate-100 sm:col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[var(--text-muted)]">Saldo Líquido</p>
@@ -249,7 +275,7 @@ export default function CashClosure() {
               </div>
             </div>
 
-            <div className="card overflow-hidden lg:col-span-2">
+            <div className="card overflow-hidden">
               <div className="border-b border-[var(--border-color)] bg-[var(--bg-main)] px-6 py-4">
                 <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2">
                   <Receipt className="h-4 w-4" />
@@ -269,6 +295,30 @@ export default function CashClosure() {
                   ))
                 ) : (
                   <p className="p-6 text-center text-[var(--text-muted)] text-sm">Nenhuma despesa hoje.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="border-b border-[var(--border-color)] bg-[var(--bg-main)] px-6 py-4">
+                <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2">
+                  <Bike className="h-4 w-4" />
+                  Entregas Pagas ({data.deliveryCount})
+                </h3>
+              </div>
+              <div className="divide-y divide-[var(--border-color)]">
+                {data.deliveryList.length > 0 ? (
+                  data.deliveryList.map(run => (
+                    <div key={run.id} className="p-4 flex justify-between items-center text-sm hover:bg-[var(--bg-main)]">
+                      <div>
+                        <p className="font-medium text-[var(--text-main)]">{run.motoboyName}</p>
+                        <p className="text-xs text-[var(--text-muted)]">{run.locationName}</p>
+                      </div>
+                      <span className="font-bold text-orange-600">- R$ {(run.totalValue || run.value).toFixed(2)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="p-6 text-center text-[var(--text-muted)] text-sm">Nenhuma entrega paga hoje.</p>
                 )}
               </div>
             </div>

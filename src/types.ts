@@ -31,6 +31,7 @@ export interface ServiceOrder {
   statusHistory?: { status: OSStatus; date: any; notes?: string }[];
   notes?: string;
   totalValue?: number;
+  deliveredAt?: any;
   createdAt: any;
 }
 
@@ -77,6 +78,7 @@ export interface DeliveryRun {
   date: string; // YYYY-MM-DD
   status: DeliveryStatus;
   notes?: string;
+  paidAt?: any;
   createdAt: any;
 }
 

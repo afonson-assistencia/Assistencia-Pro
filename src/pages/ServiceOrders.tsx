@@ -119,38 +119,53 @@ export default function ServiceOrders() {
         currentCustomerPhone = customer.phone;
       }
 
-      const now = new Date();
+      const now = editingOrder ? (editingOrder.createdAt?.toDate?.() || new Date()) : new Date();
       const deadline = addDays(now, deadlineDays);
 
-      const orderData = {
+      const orderData: any = {
         customerId: currentCustomerId,
         customerName: currentCustomerName,
         customerPhone: currentCustomerPhone,
         model,
         services: selectedServices,
         problem,
-        entryDate: serverTimestamp(),
         deadline: Timestamp.fromDate(deadline),
         warrantyDays,
-        status: 'pending',
         notes,
         totalValue,
-        createdAt: serverTimestamp(),
       };
 
-      const orderRef = await addDoc(collection(db, 'serviceOrders'), orderData);
-      
-      // Auto-send to n8n if configured
-      try {
-        await sendToN8N({
-          event: 'os_created',
-          orderId: orderRef.id,
-          ...orderData,
-          entryDate: now.toISOString(),
-          deadline: deadline.toISOString(),
-        });
-      } catch (n8nErr) {
-        console.warn('N8N auto-send failed:', n8nErr);
+      if (editingOrder) {
+        await updateDoc(doc(db, 'serviceOrders', editingOrder.id), orderData);
+        
+        try {
+          await sendToN8N({
+            event: 'os_updated',
+            orderId: editingOrder.id,
+            ...orderData,
+            deadline: deadline.toISOString(),
+          });
+        } catch (n8nErr) {
+          console.warn('N8N update send failed:', n8nErr);
+        }
+      } else {
+        orderData.entryDate = serverTimestamp();
+        orderData.status = 'pending';
+        orderData.createdAt = serverTimestamp();
+        
+        const orderRef = await addDoc(collection(db, 'serviceOrders'), orderData);
+        
+        try {
+          await sendToN8N({
+            event: 'os_created',
+            orderId: orderRef.id,
+            ...orderData,
+            entryDate: now.toISOString(),
+            deadline: deadline.toISOString(),
+          });
+        } catch (n8nErr) {
+          console.warn('N8N auto-send failed:', n8nErr);
+        }
       }
 
       setIsModalOpen(false);
@@ -158,11 +173,35 @@ export default function ServiceOrders() {
       fetchOrders();
       fetchCustomers();
     } catch (error: any) {
-      console.error('Error adding order:', error);
-      setError('Erro ao criar ordem de serviço. Verifique os dados e tente novamente.');
+      console.error('Error adding/updating order:', error);
+      setError(`Erro ao ${editingOrder ? 'atualizar' : 'criar'} ordem de serviço. Verifique os dados e tente novamente.`);
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
     }
+  };
+
+  const handleEditOrder = (order: ServiceOrder) => {
+    setEditingOrder(order);
+    setCustomerId(order.customerId);
+    setModel(order.model);
+    setSelectedServices(order.services || []);
+    setProblem(order.problem);
+    setWarrantyDays(order.warrantyDays || 90);
+    
+    // Calculate deadline days
+    if (order.deadline?.toDate) {
+      const start = order.createdAt?.toDate?.() || new Date();
+      const end = order.deadline.toDate();
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      setDeadlineDays(diffDays);
+    } else {
+      setDeadlineDays(3);
+    }
+    
+    setNotes(order.notes || '');
+    setTotalValue(order.totalValue || 0);
+    setIsModalOpen(true);
   };
 
   const resetForm = () => {
@@ -178,6 +217,7 @@ export default function ServiceOrders() {
     setNotes('');
     setTotalValue(0);
     setError(null);
+    setEditingOrder(null);
   };
 
   const updateStatus = async (id: string, newStatus: OSStatus) => {
@@ -193,11 +233,17 @@ export default function ServiceOrders() {
       };
 
       const updatedHistory = [...(order.statusHistory || []), historyEntry];
-
-      await updateDoc(doc(db, 'serviceOrders', id), { 
+      
+      const updateData: any = { 
         status: newStatus,
         statusHistory: updatedHistory
-      });
+      };
+
+      if (newStatus === 'delivered') {
+        updateData.deliveredAt = serverTimestamp();
+      }
+
+      await updateDoc(doc(db, 'serviceOrders', id), updateData);
 
       try {
         await sendToN8N({
@@ -232,8 +278,8 @@ export default function ServiceOrders() {
         createdAt: order.createdAt?.toDate?.()?.toISOString(),
       });
       alert('Dados enviados para o n8n com sucesso!');
-    } catch (error) {
-      alert('Erro ao enviar para o n8n. Verifique o console.');
+    } catch (error: any) {
+      alert(`Erro ao enviar para o n8n: ${error.message}`);
     } finally {
       setSendingN8N(null);
     }
@@ -303,7 +349,7 @@ Obrigado pela preferência!`;
               <List className="h-4 w-4" />
             </button>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary gap-2 flex-1 sm:flex-none">
+          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn btn-primary gap-2 flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nova O.S.</span>
             <span className="sm:hidden">Nova</span>
@@ -411,6 +457,13 @@ Obrigado pela preferência!`;
                   </div>
                   <div className="flex gap-1">
                     <button
+                      onClick={() => handleEditOrder(order)}
+                      className="btn btn-secondary h-8 w-8 p-0 text-amber-600 dark:text-amber-400"
+                      title="Editar"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => setViewingOrder(order)}
                       className="btn btn-secondary h-8 w-8 p-0 text-slate-600 dark:text-slate-400"
                       title="Ver Detalhes"
@@ -498,6 +551,13 @@ Obrigado pela preferência!`;
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
                           <button
+                            onClick={() => handleEditOrder(order)}
+                            className="btn btn-secondary h-7 w-7 p-0 text-amber-600"
+                            title="Editar"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={() => setViewingOrder(order)}
                             className="btn btn-secondary h-7 w-7 p-0"
                             title="Ver Detalhes"
@@ -584,7 +644,9 @@ Obrigado pela preferência!`;
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-[var(--border-color)]">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[var(--text-main)]">Nova Ordem de Serviço</h2>
+              <h2 className="text-xl font-bold text-[var(--text-main)]">
+                {editingOrder ? 'Editar Ordem de Serviço' : 'Nova Ordem de Serviço'}
+              </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
                 <X className="h-6 w-6" />
               </button>
@@ -752,7 +814,7 @@ Obrigado pela preferência!`;
                 </button>
                 <button type="submit" disabled={actionLoading.submit} className="btn btn-primary flex-1 gap-2">
                   {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {actionLoading.submit ? 'Processando...' : 'Criar Ordem de Serviço'}
+                  {actionLoading.submit ? 'Processando...' : (editingOrder ? 'Salvar Alterações' : 'Criar Ordem de Serviço')}
                 </button>
               </div>
             </form>

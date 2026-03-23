@@ -190,7 +190,11 @@ export default function DeliveryManagement() {
   const handleUpdateRunStatus = async (id: string, status: DeliveryStatus) => {
     setLoading(prev => ({ ...prev, [`updateRun_${id}_${status}`]: true }));
     try {
-      await updateDoc(doc(db, 'deliveryRuns', id), { status });
+      const updateData: any = { status };
+      if (status === 'paid') {
+        updateData.paidAt = serverTimestamp();
+      }
+      await updateDoc(doc(db, 'deliveryRuns', id), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `deliveryRuns/${id}`);
     } finally {
