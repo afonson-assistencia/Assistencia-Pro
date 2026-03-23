@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2 } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,6 +20,7 @@ export default function ServiceOrders() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sendingN8N, setSendingN8N] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
@@ -88,6 +89,7 @@ export default function ServiceOrders() {
   const handleAddOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setActionLoading(prev => ({ ...prev, submit: true }));
     
     let currentCustomerId = customerId;
     let currentCustomerName = '';
@@ -158,6 +160,8 @@ export default function ServiceOrders() {
     } catch (error: any) {
       console.error('Error adding order:', error);
       setError('Erro ao criar ordem de serviço. Verifique os dados e tente novamente.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
@@ -177,6 +181,7 @@ export default function ServiceOrders() {
   };
 
   const updateStatus = async (id: string, newStatus: OSStatus) => {
+    setActionLoading(prev => ({ ...prev, [`status_${id}`]: true }));
     try {
       const order = orders.find(o => o.id === id);
       if (!order) return;
@@ -211,6 +216,8 @@ export default function ServiceOrders() {
       fetchOrders();
     } catch (error) {
       console.error('Error updating status:', error);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`status_${id}`]: false }));
     }
   };
 
@@ -233,6 +240,7 @@ export default function ServiceOrders() {
   };
 
   const handleDeleteOrder = async (id: string) => {
+    setActionLoading(prev => ({ ...prev, delete: true }));
     try {
       setError(null);
       await deleteDoc(doc(db, 'serviceOrders', id));
@@ -241,6 +249,8 @@ export default function ServiceOrders() {
     } catch (error: any) {
       console.error('Error deleting order:', error);
       setError('Erro ao excluir ordem de serviço: ' + (error.message || 'Sem permissão'));
+    } finally {
+      setActionLoading(prev => ({ ...prev, delete: false }));
     }
   };
 
@@ -280,14 +290,14 @@ Obrigado pela preferência!`;
           <div className="flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-1 mr-2">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
               title="Visualização em Grade"
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
               title="Visualização em Tabela"
             >
               <List className="h-4 w-4" />
@@ -300,8 +310,8 @@ Obrigado pela preferência!`;
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row">
-        <div className="card flex-1 p-4">
+      <div className="flex flex-col gap-4 md:flex-row items-center">
+        <div className="flex-1 w-full md:w-64">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
@@ -313,7 +323,7 @@ Obrigado pela preferência!`;
             />
           </div>
         </div>
-        <div className="card w-full md:w-64 p-4">
+        <div className="w-full md:w-64 input">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-[var(--text-muted)]" />
             <select
@@ -381,15 +391,23 @@ Obrigado pela preferência!`;
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <select
-                    className="btn btn-secondary flex-1 text-xs h-8 py-0"
-                    value={order.status}
-                    onChange={(e) => updateStatus(order.id, e.target.value as OSStatus)}
-                  >
-                    {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                      <option key={val} value={val}>{label}</option>
-                    ))}
-                  </select>
+                  <div className="relative flex-1">
+                    <select
+                      className="btn btn-secondary w-full text-xs h-8 py-0 appearance-none pr-8 disabled:opacity-50"
+                      value={order.status}
+                      onChange={(e) => updateStatus(order.id, e.target.value as OSStatus)}
+                      disabled={actionLoading[`status_${order.id}`]}
+                    >
+                      {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </select>
+                    {actionLoading[`status_${order.id}`] && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 rounded-md">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-1">
                     <button
                       onClick={() => setViewingOrder(order)}
@@ -543,14 +561,17 @@ Obrigado pela preferência!`;
               <button
                 onClick={() => setDeletingOrder(null)}
                 className="btn btn-secondary flex-1"
+                disabled={actionLoading.delete}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDeleteOrder(deletingOrder)}
-                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                disabled={actionLoading.delete}
+                className="btn bg-red-600 text-white hover:bg-red-700 flex-1 gap-2"
               >
-                Excluir
+                {actionLoading.delete && <Loader2 className="h-4 w-4 animate-spin" />}
+                {actionLoading.delete ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -724,11 +745,13 @@ Obrigado pela preferência!`;
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="btn btn-secondary flex-1"
+                  disabled={actionLoading.submit}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  Criar Ordem de Serviço
+                <button type="submit" disabled={actionLoading.submit} className="btn btn-primary flex-1 gap-2">
+                  {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {actionLoading.submit ? 'Processando...' : 'Criar Ordem de Serviço'}
                 </button>
               </div>
             </form>
@@ -863,28 +886,28 @@ const PrintOS = React.forwardRef<HTMLDivElement, { order: ServiceOrder | null }>
 
       <div className="mb-8 grid grid-cols-2 gap-8">
         <div>
-          <h3 className="mb-2 font-bold uppercase text-slate-500">Cliente</h3>
+          <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Cliente</h3>
           <p className="text-lg font-semibold">{order.customerName}</p>
           <p>{order.customerPhone}</p>
         </div>
         <div>
-          <h3 className="mb-2 font-bold uppercase text-slate-500">Aparelho</h3>
+          <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Aparelho</h3>
           <p className="text-lg font-semibold">{order.model}</p>
           <p>Status: {STATUS_LABELS[order.status]}</p>
         </div>
       </div>
 
       <div className="mb-8">
-        <h3 className="mb-2 font-bold uppercase text-slate-500">Serviços e Problema</h3>
+        <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Serviços e Problema</h3>
         <div className="rounded-lg border border-slate-200 p-4 bg-slate-50 space-y-4">
           {order.services?.length > 0 && (
             <div>
-              <p className="text-xs font-bold uppercase text-slate-400 mb-1">Serviços Solicitados:</p>
+              <p className="text-xs font-bold uppercase text-[var(--text-muted)] opacity-70 mb-1">Serviços Solicitados:</p>
               <p className="font-semibold">{order.services.join(', ')}</p>
             </div>
           )}
           <div>
-            <p className="text-xs font-bold uppercase text-slate-400 mb-1">Problema Relatado:</p>
+            <p className="text-xs font-bold uppercase text-[var(--text-muted)] opacity-70 mb-1">Problema Relatado:</p>
             <p>{order.problem}</p>
           </div>
         </div>
@@ -892,24 +915,24 @@ const PrintOS = React.forwardRef<HTMLDivElement, { order: ServiceOrder | null }>
 
       <div className="mb-8 grid grid-cols-3 gap-4">
         <div className="rounded-lg border border-slate-200 p-4">
-          <p className="text-xs font-bold uppercase text-slate-500">Valor Total</p>
+          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Valor Total</p>
           <p className="text-xl font-bold">R$ {order.totalValue?.toFixed(2)}</p>
         </div>
         <div className="rounded-lg border border-slate-200 p-4">
-          <p className="text-xs font-bold uppercase text-slate-500">Prazo</p>
+          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Prazo</p>
           <p className="text-xl font-bold">
             {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : '-'}
           </p>
         </div>
         <div className="rounded-lg border border-slate-200 p-4">
-          <p className="text-xs font-bold uppercase text-slate-500">Garantia</p>
+          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Garantia</p>
           <p className="text-xl font-bold">{order.warrantyDays} dias</p>
         </div>
       </div>
 
       {order.notes && (
         <div className="mb-8">
-          <h3 className="mb-2 font-bold uppercase text-slate-500">Observações</h3>
+          <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Observações</h3>
           <p className="text-sm italic text-slate-600">{order.notes}</p>
         </div>
       )}
@@ -923,7 +946,7 @@ const PrintOS = React.forwardRef<HTMLDivElement, { order: ServiceOrder | null }>
         </div>
       </div>
 
-      <div className="mt-12 text-center text-[10px] text-slate-400">
+      <div className="mt-12 text-center text-[10px] text-[var(--text-muted)] opacity-50">
         Este documento é um comprovante de entrada de serviço. Guarde-o para a retirada do aparelho.
       </div>
     </div>

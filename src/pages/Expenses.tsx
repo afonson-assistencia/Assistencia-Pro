@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Expense } from '../types';
-import { Plus, Search, Trash2, Receipt, Calendar, X, AlertCircle } from 'lucide-react';
+import { Plus, Search, Trash2, Receipt, Calendar, X, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
@@ -13,6 +13,7 @@ export default function Expenses() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingExpense, setDeletingExpense] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
   // Form state
   const [description, setDescription] = useState('');
@@ -43,6 +44,7 @@ export default function Expenses() {
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setActionLoading(prev => ({ ...prev, submit: true }));
     try {
       await addDoc(collection(db, 'expenses'), {
         description,
@@ -57,10 +59,13 @@ export default function Expenses() {
     } catch (error) {
       console.error('Error adding expense:', error);
       setError('Erro ao registrar despesa.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
   const handleDeleteExpense = async (id: string) => {
+    setActionLoading(prev => ({ ...prev, delete: true }));
     try {
       setError(null);
       await deleteDoc(doc(db, 'expenses', id));
@@ -69,6 +74,8 @@ export default function Expenses() {
     } catch (error: any) {
       console.error('Error deleting expense:', error);
       setError('Erro ao excluir despesa: ' + (error.message || 'Sem permissão'));
+    } finally {
+      setActionLoading(prev => ({ ...prev, delete: false }));
     }
   };
 
@@ -174,14 +181,17 @@ export default function Expenses() {
               <button
                 onClick={() => setDeletingExpense(null)}
                 className="btn btn-secondary flex-1"
+                disabled={actionLoading.delete}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDeleteExpense(deletingExpense)}
-                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                disabled={actionLoading.delete}
+                className="btn bg-red-600 text-white hover:bg-red-700 flex-1 gap-2"
               >
-                Excluir
+                {actionLoading.delete && <Loader2 className="h-4 w-4 animate-spin" />}
+                {actionLoading.delete ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -239,11 +249,13 @@ export default function Expenses() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="btn btn-secondary flex-1"
+                  disabled={actionLoading.submit}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  Salvar Despesa
+                <button type="submit" disabled={actionLoading.submit} className="btn btn-primary flex-1 gap-2">
+                  {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {actionLoading.submit ? 'Salvando...' : 'Salvar Despesa'}
                 </button>
               </div>
             </form>

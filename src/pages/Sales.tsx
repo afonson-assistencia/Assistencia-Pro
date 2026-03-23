@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Sale, Product } from '../types';
-import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus, Loader2 } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
@@ -18,6 +18,7 @@ export default function Sales() {
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
   // Form state
   const [customerId, setCustomerId] = useState('');
@@ -117,6 +118,7 @@ export default function Sales() {
     }
 
     setError(null);
+    setActionLoading(prev => ({ ...prev, submit: true }));
     const subtotal = currentItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const totalValue = Math.max(0, subtotal - discount);
     const customer = customers.find(c => c.id === customerId);
@@ -152,10 +154,13 @@ export default function Sales() {
     } catch (error) {
       console.error('Error adding sale:', error);
       setError('Erro ao registrar venda.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
   const handleDelete = async (id: string) => {
+    setActionLoading(prev => ({ ...prev, delete: true }));
     try {
       setError(null);
       await deleteDoc(doc(db, 'sales', id));
@@ -164,6 +169,8 @@ export default function Sales() {
     } catch (error: any) {
       console.error('Error deleting sale:', error);
       setError('Erro ao excluir venda: ' + (error.message || 'Sem permissão'));
+    } finally {
+      setActionLoading(prev => ({ ...prev, delete: false }));
     }
   };
 
@@ -197,32 +204,32 @@ export default function Sales() {
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row">
-        <div className="card flex-1 p-4">
-          <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <div className="flex h-11 items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 shadow-sm">
             <Calendar className="h-4 w-4 text-[var(--text-muted)]" />
             <input
               type="date"
-              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)]"
+              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />
           </div>
         </div>
-        <div className="card flex-1 p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+        <div className="flex-1">
+          <div className="flex h-11 items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 shadow-sm">
+            <Search className="h-4 w-4 text-[var(--text-muted)]" />
             <input
               type="text"
               placeholder="Buscar por cliente ou produto..."
-              className="input pl-10 border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full"
+              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
-        <div className="card w-full md:w-64 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-[var(--text-muted)]">Vendas Encontradas:</span>
+        <div className="flex-1">
+          <div className="flex h-11 items-center justify-between rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 shadow-sm">
+            <span className="text-sm font-medium text-[var(--text-muted)]">Vendas:</span>
             <span className="font-bold text-[var(--text-main)]">{filteredSales.length}</span>
           </div>
         </div>
@@ -339,14 +346,17 @@ export default function Sales() {
               <button
                 onClick={() => setDeletingSale(null)}
                 className="btn btn-secondary flex-1"
+                disabled={actionLoading.delete}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDelete(deletingSale)}
-                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                disabled={actionLoading.delete}
+                className="btn bg-red-600 text-white hover:bg-red-700 flex-1 gap-2"
               >
-                Excluir
+                {actionLoading.delete && <Loader2 className="h-4 w-4 animate-spin" />}
+                {actionLoading.delete ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -509,15 +519,17 @@ export default function Sales() {
                       type="button"
                       onClick={() => setIsModalOpen(false)}
                       className="btn btn-secondary flex-1"
+                      disabled={actionLoading.submit}
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={handleAddSale}
-                      disabled={currentItems.length === 0}
-                      className="btn btn-primary flex-1"
+                      disabled={currentItems.length === 0 || actionLoading.submit}
+                      className="btn btn-primary flex-1 gap-2"
                     >
-                      Finalizar Venda
+                      {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {actionLoading.submit ? 'Processando...' : 'Finalizar Venda'}
                     </button>
                   </div>
                 </div>

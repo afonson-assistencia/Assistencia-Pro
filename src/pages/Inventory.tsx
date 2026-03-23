@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, Category } from '../types';
-import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '../App';
 
 export default function Inventory() {
@@ -17,6 +17,7 @@ export default function Inventory() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function Inventory() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionLoading(prev => ({ ...prev, submitProduct: true }));
     try {
       if (editingProduct) {
         await updateDoc(doc(db, 'products', editingProduct.id), {
@@ -102,11 +104,14 @@ export default function Inventory() {
     } catch (error) {
       console.error('Error saving product:', error);
       setError('Erro ao salvar produto.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, submitProduct: false }));
     }
   };
 
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionLoading(prev => ({ ...prev, submitCategory: true }));
     try {
       if (editingCategory) {
         await updateDoc(doc(db, 'categories', editingCategory.id), {
@@ -125,17 +130,22 @@ export default function Inventory() {
     } catch (error) {
       console.error('Error saving category:', error);
       setError('Erro ao salvar categoria.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, submitCategory: false }));
     }
   };
 
   const deleteCategory = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta categoria?')) return;
+    setActionLoading(prev => ({ ...prev, [`deleteCategory_${id}`]: true }));
     try {
       await deleteDoc(doc(db, 'categories', id));
       setSuccess('Categoria excluída com sucesso!');
     } catch (error) {
       console.error('Error deleting category:', error);
       setError('Erro ao excluir categoria.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`deleteCategory_${id}`]: false }));
     }
   };
 
@@ -162,14 +172,18 @@ export default function Inventory() {
   };
 
   const updateStock = async (id: string, newStock: number) => {
+    setActionLoading(prev => ({ ...prev, [`updateStock_${id}`]: true }));
     try {
       await updateDoc(doc(db, 'products', id), { stock: newStock });
     } catch (error) {
       console.error('Error updating stock:', error);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`updateStock_${id}`]: false }));
     }
   };
 
   const handleDelete = async (id: string) => {
+    setActionLoading(prev => ({ ...prev, [`deleteProduct_${id}`]: true }));
     try {
       setError(null);
       await deleteDoc(doc(db, 'products', id));
@@ -177,6 +191,8 @@ export default function Inventory() {
     } catch (error: any) {
       console.error('Error deleting product:', error);
       setError('Erro ao excluir produto: ' + (error.message || 'Sem permissão'));
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`deleteProduct_${id}`]: false }));
     }
   };
 
@@ -267,7 +283,7 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="card p-4">
+      <div className="">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -359,15 +375,17 @@ export default function Inventory() {
                   <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-color)]">
                     <button
                       onClick={() => updateStock(product.id, Math.max(0, product.stock - 1))}
-                      className="btn btn-secondary flex-1 h-9"
+                      disabled={actionLoading[`updateStock_${product.id}`]}
+                      className="btn btn-secondary flex-1 h-9 disabled:opacity-50"
                     >
-                      -
+                      {actionLoading[`updateStock_${product.id}`] ? <Loader2 className="h-4 w-4 animate-spin" /> : '-'}
                     </button>
                     <button
                       onClick={() => updateStock(product.id, product.stock + 1)}
-                      className="btn btn-secondary flex-1 h-9"
+                      disabled={actionLoading[`updateStock_${product.id}`]}
+                      className="btn btn-secondary flex-1 h-9 disabled:opacity-50"
                     >
-                      +
+                      {actionLoading[`updateStock_${product.id}`] ? <Loader2 className="h-4 w-4 animate-spin" /> : '+'}
                     </button>
                   </div>
                 </div>
@@ -414,20 +432,22 @@ export default function Inventory() {
                                   e.stopPropagation();
                                   updateStock(product.id, Math.max(0, product.stock - 1));
                                 }}
-                                className="btn btn-secondary h-7 w-7 p-0 text-xs"
+                                disabled={actionLoading[`updateStock_${product.id}`]}
+                                className="btn btn-secondary h-7 w-7 p-0 text-xs disabled:opacity-50"
                                 title="Diminuir Estoque"
                               >
-                                -
+                                {actionLoading[`updateStock_${product.id}`] ? <Loader2 className="h-3 w-3 animate-spin" /> : '-'}
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   updateStock(product.id, product.stock + 1);
                                 }}
-                                className="btn btn-secondary h-7 w-7 p-0 text-xs"
+                                disabled={actionLoading[`updateStock_${product.id}`]}
+                                className="btn btn-secondary h-7 w-7 p-0 text-xs disabled:opacity-50"
                                 title="Aumentar Estoque"
                               >
-                                +
+                                {actionLoading[`updateStock_${product.id}`] ? <Loader2 className="h-3 w-3 animate-spin" /> : '+'}
                               </button>
                             </div>
 
@@ -502,14 +522,17 @@ export default function Inventory() {
               <button
                 onClick={() => setDeletingProduct(null)}
                 className="btn btn-secondary flex-1"
+                disabled={actionLoading[`deleteProduct_${deletingProduct}`]}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDelete(deletingProduct)}
-                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                disabled={actionLoading[`deleteProduct_${deletingProduct}`]}
+                className="btn bg-red-600 text-white hover:bg-red-700 flex-1 gap-2"
               >
-                Excluir
+                {actionLoading[`deleteProduct_${deletingProduct}`] && <Loader2 className="h-4 w-4 animate-spin" />}
+                {actionLoading[`deleteProduct_${deletingProduct}`] ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -579,11 +602,13 @@ export default function Inventory() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="btn btn-secondary flex-1"
+                  disabled={actionLoading.submitProduct}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  Salvar
+                <button type="submit" disabled={actionLoading.submitProduct} className="btn btn-primary flex-1 gap-2">
+                  {actionLoading.submitProduct && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {actionLoading.submitProduct ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </form>
@@ -610,11 +635,12 @@ export default function Inventory() {
                 placeholder="Nova categoria..."
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
+                disabled={actionLoading.submitCategory}
               />
-              <button type="submit" className="btn btn-primary">
-                {editingCategory ? <CheckCircle2 className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              <button type="submit" disabled={actionLoading.submitCategory} className="btn btn-primary min-w-[44px]">
+                {actionLoading.submitCategory ? <Loader2 className="h-5 w-5 animate-spin" /> : (editingCategory ? <CheckCircle2 className="h-5 w-5" /> : <Plus className="h-5 w-5" />)}
               </button>
-              {editingCategory && (
+              {editingCategory && !actionLoading.submitCategory && (
                 <button 
                   type="button" 
                   onClick={() => {
@@ -642,15 +668,17 @@ export default function Inventory() {
                           setEditingCategory(cat);
                           setCategoryName(cat.name);
                         }}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"
+                        disabled={actionLoading[`deleteCategory_${cat.id}`] || actionLoading.submitCategory}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md disabled:opacity-50"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => deleteCategory(cat.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                        disabled={actionLoading[`deleteCategory_${cat.id}`] || actionLoading.submitCategory}
+                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-50"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {actionLoading[`deleteCategory_${cat.id}`] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>

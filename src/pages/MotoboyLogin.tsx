@@ -1,0 +1,187 @@
+import React, { useState, useEffect } from 'react';
+import { signInAnonymously } from 'firebase/auth';
+import { auth, db } from '../firebase';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Bike, LogIn, ShieldCheck, Moon, Sun, User, AlertCircle, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export default function MotoboyLogin() {
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showConfigHelp, setShowConfigHelp] = useState(false);
+  const navigate = useNavigate();
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+    }
+    return 'light';
+  });
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.classList.toggle('dark');
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    
+    setLoading(true);
+    setError('');
+    setShowConfigHelp(false);
+
+    try {
+      // 1. Search for motoboy by name
+      const motoboysRef = collection(db, 'motoboys');
+      const q = query(motoboysRef, where('name', '==', name.trim()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError('Motoboy não encontrado. Verifique o nome ou peça ao administrador para cadastrá-lo.');
+        setLoading(false);
+        return;
+      }
+
+      const motoboyDoc = querySnapshot.docs[0];
+      const motoboyData = motoboyDoc.data();
+
+      if (motoboyData.active === false) {
+        setError('Este cadastro está inativo.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Sign in anonymously
+      try {
+        const userCredential = await signInAnonymously(auth);
+        const user = userCredential.user;
+
+        // 3. Create/Update user profile as motoboy
+        await setDoc(doc(db, 'users', user.uid), {
+          name: motoboyData.name,
+          role: 'motoboy',
+          motoboyId: motoboyDoc.id,
+          email: `${motoboyDoc.id}@motoboy.local`, // Dummy email for compatibility
+          createdAt: serverTimestamp(),
+        }, { merge: true });
+
+        navigate('/motoboy-dashboard');
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/admin-restricted-operation') {
+          setError('O login anônimo não está ativado no Firebase.');
+          setShowConfigHelp(true);
+        } else {
+          throw authErr;
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError('Erro ao realizar login. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      {/* Left Side - Image */}
+      <div className="hidden md:block md:w-1/2 lg:w-3/5 relative overflow-hidden">
+        <img 
+          src="https://img.freepik.com/premium-photo/delivery-man-scooter-express-food-delivery-around-city-yellow-background-delivery-fast-high-speed-ai-generation_235573-2619.jpg" 
+          alt="Delivery Man" 
+          className="absolute inset-0 w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent"></div>
+        <div className="absolute bottom-12 left-12 text-white">
+          <h2 className="text-4xl font-bold mb-2">Entrega Rápida</h2>
+          <p className="text-lg opacity-90">Gerencie suas corridas com facilidade.</p>
+        </div>
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12">
+        <button
+          onClick={toggleTheme}
+          className="fixed top-6 right-6 p-3 rounded-full bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:scale-110 transition-transform z-10"
+        >
+          {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        </button>
+
+        <div className="w-full max-w-md">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/20 mb-6">
+              <Bike className="h-12 w-12 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Área do Motoboy</h1>
+            <p className="text-[var(--text-muted)] mt-3 text-lg">Bem-vindo de volta! Digite seu nome para entrar.</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800">
+            {error && (
+              <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl flex flex-col gap-3 text-red-600 dark:text-red-400">
+                <div className="flex items-center gap-3 text-sm font-semibold">
+                  <ShieldCheck className="h-5 w-5 flex-shrink-0" />
+                  {error}
+                </div>
+                {showConfigHelp && (
+                  <div className="mt-2 text-xs bg-white/50 dark:bg-black/20 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
+                    <p className="font-bold mb-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Ação Necessária:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-1 opacity-90">
+                      <li>Vá ao Console do Firebase</li>
+                      <li>Authentication {'>'} Sign-in method</li>
+                      <li>Ative o provedor <b>"Anônimo"</b></li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-8">
+              <div>
+                <label className="block text-sm font-bold text-[var(--text-main)] mb-3 uppercase tracking-wider">Seu Nome Completo</label>
+                <div className="relative">
+                  <User className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-xl font-medium"
+                    placeholder="Ex: Ronald Silva"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="h-7 w-7 animate-spin" />
+                ) : (
+                  <>
+                    <LogIn className="h-6 w-6" />
+                    Entrar no Painel
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-center text-sm text-[var(--text-muted)]">
+                Não é motoboy? <button onClick={() => navigate('/login')} className="text-blue-600 font-bold hover:underline">Acesso Administrativo</button>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

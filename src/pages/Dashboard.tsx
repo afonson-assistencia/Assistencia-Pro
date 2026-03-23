@@ -276,30 +276,33 @@ export default function Dashboard() {
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis 
                   dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                   dy={10}
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                   tickFormatter={(value) => `R$ ${value}`}
                 />
                 <Tooltip 
-                  cursor={{ fill: '#f8fafc' }}
+                  cursor={{ fill: 'var(--bg-main)', opacity: 0.4 }}
                   contentStyle={{ 
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)',
                     borderRadius: '12px', 
-                    border: 'none', 
+                    border: '1px solid var(--border-color)', 
                     boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
                   }}
+                  itemStyle={{ color: 'var(--text-main)' }}
                   formatter={(value: number) => [`R$ ${value.toFixed(2)}`]}
                 />
-                <Bar dataKey="revenue" fill="#0f172a" radius={[4, 4, 0, 0]} name="Receita" />
+                <Bar dataKey="revenue" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} name="Receita" />
                 <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Despesas" />
               </BarChart>
             </ResponsiveContainer>
@@ -318,13 +321,13 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="card p-6 bg-slate-900 dark:bg-slate-800 text-white border-none">
-            <h3 className="mb-2 font-semibold">Resumo de Entrega</h3>
-            <p className="text-sm text-slate-400 mb-4">Você tem {stats.readyOrders} ordens prontas para entrega.</p>
-            <Link to="/service-orders" className="text-sm font-medium text-white underline underline-offset-4">
-              Ver ordens prontas →
-            </Link>
-          </div>
+            <div className="card p-6 bg-[var(--text-main)] text-[var(--bg-card)] border-none">
+              <h3 className="mb-2 font-semibold">Resumo de Entrega</h3>
+              <p className="text-sm opacity-70 mb-4">Você tem {stats.readyOrders} ordens prontas para entrega.</p>
+              <Link to="/service-orders" className="text-sm font-medium underline underline-offset-4">
+                Ver ordens prontas →
+              </Link>
+            </div>
         </div>
       </div>
 

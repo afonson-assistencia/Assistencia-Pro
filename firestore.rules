@@ -9,9 +9,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      let adminEmails = ["afonsocnj@gmail.com", "admintec@gmail.com"];
       return isSignedIn() && (
-        (request.auth.token.email.lower() in adminEmails) ||
+        (request.auth.token.email != null && 
+         request.auth.token.email.lower() == "afonsocnj@gmail.com") ||
+        (request.auth.token.email != null && 
+         request.auth.token.email.lower() == "admintec@gmail.com") ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
@@ -52,6 +54,23 @@ service cloud.firestore {
     match /categories/{categoryId} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /deliveryLocations/{locationId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /motoboys/{motoboyId} {
+      allow read: if true; // Allow anyone to check if a motoboy name exists during login
+      allow write: if isAdmin();
+    }
+
+    match /deliveryRuns/{runId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || (isSignedIn() && (resource.data.motoboyId == request.auth.uid || request.auth.token.role == 'motoboy') && resource.data.status == 'pending');
       allow delete: if isAdmin();
     }
 

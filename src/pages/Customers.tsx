@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Customer } from '../types';
-import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart } from 'lucide-react';
+import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart, Loader2 } from 'lucide-react';
 import { useAuth } from '../App';
 import { maskPhone } from '../utils/masks';
 import { ServiceOrder, Sale } from '../types';
@@ -20,6 +20,7 @@ export default function Customers() {
   const [customerOrders, setCustomerOrders] = useState<ServiceOrder[]>([]);
   const [customerSales, setCustomerSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [success, setSuccess] = useState<string | null>(null);
 
   // Form state
@@ -55,6 +56,7 @@ export default function Customers() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setActionLoading(prev => ({ ...prev, submit: true }));
     try {
       if (editingCustomer) {
         await updateDoc(doc(db, 'customers', editingCustomer.id), {
@@ -76,10 +78,13 @@ export default function Customers() {
     } catch (error: any) {
       console.error('Error saving customer:', error);
       setError('Erro ao salvar cliente. Verifique os dados e tente novamente.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
   const handleDelete = async (id: string) => {
+    setActionLoading(prev => ({ ...prev, delete: true }));
     try {
       setError(null);
       await deleteDoc(doc(db, 'customers', id));
@@ -108,6 +113,8 @@ export default function Customers() {
       
       console.error('Firestore Error Details:', JSON.stringify(errInfo));
       setError(`Erro ao excluir cliente: ${error.message || 'Sem permissão'}. Detalhes no console.`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, delete: false }));
     }
   };
 
@@ -181,7 +188,7 @@ export default function Customers() {
         </div>
       )}
 
-      <div className="card p-4">
+      <div className="">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
@@ -271,14 +278,17 @@ export default function Customers() {
               <button
                 onClick={() => setDeletingCustomer(null)}
                 className="btn btn-secondary flex-1"
+                disabled={actionLoading.delete}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleDelete(deletingCustomer)}
-                className="btn bg-red-600 text-white hover:bg-red-700 flex-1"
+                disabled={actionLoading.delete}
+                className="btn bg-red-600 text-white hover:bg-red-700 flex-1 gap-2"
               >
-                Excluir
+                {actionLoading.delete && <Loader2 className="h-4 w-4 animate-spin" />}
+                {actionLoading.delete ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -335,11 +345,13 @@ export default function Customers() {
                   type="button"
                   onClick={closeModal}
                   className="btn btn-secondary flex-1"
+                  disabled={actionLoading.submit}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  {editingCustomer ? 'Atualizar' : 'Salvar'}
+                <button type="submit" disabled={actionLoading.submit} className="btn btn-primary flex-1 gap-2">
+                  {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {actionLoading.submit ? 'Salvando...' : (editingCustomer ? 'Atualizar' : 'Salvar')}
                 </button>
               </div>
             </form>

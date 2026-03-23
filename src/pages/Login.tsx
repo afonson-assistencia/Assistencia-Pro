@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
-import { Smartphone, Eye, EyeOff, ShieldCheck, Moon, Sun } from 'lucide-react';
+import { Smartphone, Eye, EyeOff, ShieldCheck, Moon, Sun, Bike, Loader2 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
+  const navigate = useNavigate();
   const { settings } = useSettings();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -202,9 +204,16 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="btn btn-primary w-full"
+              className="btn btn-primary w-full flex items-center justify-center gap-2"
             >
-              {loading ? 'Processando...' : isLogin ? 'Entrar' : 'Cadastrar'}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Processando...</span>
+                </>
+              ) : (
+                isLogin ? 'Entrar' : 'Cadastrar'
+              )}
             </button>
 
             <div className="relative">
@@ -243,13 +252,23 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="text-center">
+          <div className="text-center space-y-4">
             <button
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"
             >
               {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Entre'}
             </button>
+            
+            <div className="pt-4 border-t border-[var(--border-color)]">
+              <button
+                onClick={() => navigate('/motoboy-login')}
+                className="text-sm text-[var(--text-muted)] hover:text-blue-600 flex items-center justify-center gap-2 mx-auto"
+              >
+                <Bike className="h-4 w-4" />
+                Área do Motoboy
+              </button>
+            </div>
           </div>
         </div>
       </div>

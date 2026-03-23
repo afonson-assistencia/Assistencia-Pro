@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'staff';
+export type UserRole = 'admin' | 'staff' | 'motoboy';
 
 export interface UserProfile {
   id: string;
@@ -46,6 +46,37 @@ export interface Product {
 export interface Category {
   id: string;
   name: string;
+  createdAt: any;
+}
+
+export interface DeliveryLocation {
+  id: string;
+  name: string;
+  value: number;
+  createdAt: any;
+}
+
+export interface Motoboy {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: any;
+}
+
+export type DeliveryStatus = 'pending' | 'approved' | 'rejected';
+
+export interface DeliveryRun {
+  id: string;
+  motoboyId: string;
+  motoboyName: string;
+  locationId: string;
+  locationName: string;
+  value: number;
+  quantity: number;
+  totalValue: number;
+  date: string; // YYYY-MM-DD
+  status: DeliveryStatus;
+  notes?: string;
   createdAt: any;
 }
 

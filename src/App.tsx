@@ -39,6 +39,9 @@ import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
 import CashClosure from './pages/CashClosure';
 import Settings from './pages/Settings';
+import DeliveryManagement from './pages/DeliveryManagement';
+import MotoboyDashboard from './pages/MotoboyDashboard';
+import MotoboyLogin from './pages/MotoboyLogin';
 import Layout from './components/Layout';
 import { SettingsProvider } from './contexts/SettingsContext';
 
@@ -119,11 +122,12 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+            <Route path="/motoboy-login" element={!user ? <MotoboyLogin /> : <Navigate to="/" />} />
             <Route
               path="/"
               element={user ? <Layout /> : <Navigate to="/login" />}
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={profile?.role === 'motoboy' ? <Navigate to="/motoboy-dashboard" /> : <Dashboard />} />
               <Route path="customers" element={<Customers />} />
               <Route path="service-orders" element={<ServiceOrders />} />
               <Route path="inventory" element={<Inventory />} />
@@ -131,6 +135,8 @@ export default function App() {
               <Route path="expenses" element={<Expenses />} />
               <Route path="cash-closure" element={<CashClosure />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="delivery-management" element={<DeliveryManagement />} />
+              <Route path="motoboy-dashboard" element={<MotoboyDashboard />} />
             </Route>
           </Routes>
         </BrowserRouter>

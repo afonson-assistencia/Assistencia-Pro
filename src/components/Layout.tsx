@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Package, ShoppingCart, LogOut, Menu, X, Receipt, Moon, Sun, ShieldCheck, Download, Wallet, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Package, ShoppingCart, LogOut, Menu, X, Receipt, Moon, Sun, ShieldCheck, Download, Wallet, Settings as SettingsIcon, Bike } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -26,15 +26,23 @@ export default function Layout() {
   });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
+  const isAdmin = profile?.role === 'admin';
+  const isMotoboy = profile?.role === 'motoboy';
+
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/customers', label: 'Clientes', icon: Users },
-    { path: '/service-orders', label: 'Ordens de Serviço', icon: ClipboardList },
-    { path: '/inventory', label: 'Estoque', icon: Package },
-    { path: '/sales', label: 'Vendas', icon: ShoppingCart },
-    { path: '/expenses', label: 'Despesas', icon: Receipt },
-    { path: '/cash-closure', label: 'Fechamento', icon: Wallet },
-    ...(profile?.role === 'admin' ? [{ path: '/settings', label: 'Configurações', icon: SettingsIcon }] : []),
+    ...(isMotoboy ? [
+      { path: '/motoboy-dashboard', label: 'Minhas Corridas', icon: Bike },
+    ] : [
+      { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { path: '/customers', label: 'Clientes', icon: Users },
+      { path: '/service-orders', label: 'Ordens de Serviço', icon: ClipboardList },
+      { path: '/inventory', label: 'Estoque', icon: Package },
+      { path: '/sales', label: 'Vendas', icon: ShoppingCart },
+      { path: '/expenses', label: 'Despesas', icon: Receipt },
+      { path: '/cash-closure', label: 'Fechamento', icon: Wallet },
+      { path: '/delivery-management', label: 'Entregas', icon: Bike },
+    ]),
+    ...(isAdmin ? [{ path: '/settings', label: 'Configurações', icon: SettingsIcon }] : []),
   ];
 
   useEffect(() => {
@@ -124,7 +132,7 @@ export default function Layout() {
           </button>
           <div className="mb-4 px-3">
             <p className="text-xs font-medium text-[var(--text-muted)]">Logado como</p>
-            <p className="truncate text-sm font-semibold text-[var(--text-main)]">{profile?.email}</p>
+            <p className="truncate text-sm font-semibold text-[var(--text-main)]">{profile?.name || profile?.email || 'Usuário'}</p>
             <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">{profile?.role}</p>
           </div>
           <button
