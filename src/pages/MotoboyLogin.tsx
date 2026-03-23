@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Bike, LogIn, ShieldCheck, Moon, Sun, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Bike, LogIn, ShieldCheck, Moon, Sun, User, AlertCircle, Loader2, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function MotoboyLogin() {
@@ -11,6 +11,26 @@ export default function MotoboyLogin() {
   const [error, setError] = useState('');
   const [showConfigHelp, setShowConfigHelp] = useState(false);
   const navigate = useNavigate();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    }
+  };
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
@@ -168,7 +188,16 @@ export default function MotoboyLogin() {
               </button>
             </form>
 
-            <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800">
+            <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
+              {deferredPrompt && (
+                <button
+                  onClick={handleInstall}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  <Download className="h-4 w-4" />
+                  Instalar Aplicativo
+                </button>
+              )}
               <p className="text-center text-sm text-white">
                 Não é motoboy? <button onClick={() => navigate('/login')} className="text-blue-600 font-bold hover:underline">Acesso Administrativo</button>
               </p>

@@ -122,7 +122,11 @@ export default function MotoboyDashboard() {
   };
 
   const totalEarned = runs
-    .filter(r => r.status === 'approved')
+    .filter(r => r.status === 'approved' || r.status === 'paid')
+    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
+
+  const totalPaid = runs
+    .filter(r => r.status === 'paid')
     .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
 
   const pendingCount = runs.filter(r => r.status === 'pending').length;
@@ -163,10 +167,14 @@ export default function MotoboyDashboard() {
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
             <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Ganhos</p>
             <p className="text-xl sm:text-2xl font-bold text-emerald-600">R$ {totalEarned.toFixed(2)}</p>
+          </div>
+          <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
+            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Pagos</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600">R$ {totalPaid.toFixed(2)}</p>
           </div>
           <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
             <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Pendentes</p>
@@ -198,10 +206,12 @@ export default function MotoboyDashboard() {
                 <div className="flex items-center gap-4">
                   <div className={`p-2 rounded-lg ${
                     run.status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
+                    run.status === 'paid' ? 'bg-blue-100 text-blue-600' :
                     run.status === 'rejected' ? 'bg-red-100 text-red-600' :
                     'bg-yellow-100 text-yellow-600'
                   }`}>
                     {run.status === 'approved' ? <CheckCircle className="h-5 w-5" /> :
+                     run.status === 'paid' ? <DollarSign className="h-5 w-5" /> :
                      run.status === 'rejected' ? <XCircle className="h-5 w-5" /> :
                      <Clock className="h-5 w-5" />}
                   </div>
@@ -218,10 +228,12 @@ export default function MotoboyDashboard() {
                   <p className="font-bold text-lg">R$ {(run.totalValue || run.value).toFixed(2)}</p>
                   <p className={`text-[10px] uppercase font-bold tracking-tighter ${
                     run.status === 'approved' ? 'text-emerald-600' :
+                    run.status === 'paid' ? 'text-blue-600' :
                     run.status === 'rejected' ? 'text-red-600' :
                     'text-yellow-600'
                   }`}>
                     {run.status === 'approved' ? 'Aprovado' :
+                     run.status === 'paid' ? 'Pago' :
                      run.status === 'rejected' ? 'Rejeitado' :
                      'Pendente'}
                   </p>

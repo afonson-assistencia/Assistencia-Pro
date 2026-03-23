@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
-import { Smartphone, Eye, EyeOff, ShieldCheck, Moon, Sun, Bike, Loader2 } from 'lucide-react';
+import { Smartphone, Eye, EyeOff, ShieldCheck, Moon, Sun, Bike, Loader2, Download } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,6 +15,26 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    }
+  };
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
@@ -251,6 +271,15 @@ export default function Login() {
           </form>
 
           <div className="text-center space-y-4">
+            {deferredPrompt && (
+              <button
+                onClick={handleInstall}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+              >
+                <Download className="h-4 w-4" />
+                Instalar Aplicativo
+              </button>
+            )}
             <button
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]"

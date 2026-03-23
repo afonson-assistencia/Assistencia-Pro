@@ -203,7 +203,11 @@ export default function DeliveryManagement() {
   });
 
   const totalValue = filteredRuns
-    .filter(r => r.status === 'approved')
+    .filter(r => r.status === 'approved' || r.status === 'paid')
+    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
+
+  const totalPaid = filteredRuns
+    .filter(r => r.status === 'paid')
     .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
 
   const openNewLocationModal = () => {
@@ -299,7 +303,7 @@ export default function DeliveryManagement() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="card p-4 flex items-center gap-4">
               <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
                 <Clock className="h-6 w-6" />
@@ -316,6 +320,15 @@ export default function DeliveryManagement() {
               <div>
                 <p className="text-sm text-[var(--text-muted)]">Total Aprovado</p>
                 <p className="text-xl font-bold text-emerald-600">R$ {totalValue.toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="card p-4 flex items-center gap-4">
+              <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Total Pago</p>
+                <p className="text-xl font-bold text-blue-600">R$ {totalPaid.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -344,10 +357,12 @@ export default function DeliveryManagement() {
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             run.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                            run.status === 'paid' ? 'bg-blue-100 text-blue-800' :
                             run.status === 'rejected' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
                             {run.status === 'approved' ? 'Aprovado' :
+                             run.status === 'paid' ? 'Pago' :
                              run.status === 'rejected' ? 'Rejeitado' :
                              'Pendente'}
                           </span>
@@ -373,6 +388,17 @@ export default function DeliveryManagement() {
                                   {loading[`updateRun_${run.id}_rejected`] ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5" />}
                                 </button>
                               </>
+                            )}
+                            {run.status === 'approved' && (
+                              <button
+                                onClick={() => handleUpdateRunStatus(run.id, 'paid')}
+                                disabled={loading[`updateRun_${run.id}_paid`]}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50 flex items-center gap-1"
+                                title="Marcar como Pago"
+                              >
+                                {loading[`updateRun_${run.id}_paid`] ? <Loader2 className="h-5 w-5 animate-spin" /> : <DollarSign className="h-5 w-5" />}
+                                <span className="text-xs font-bold">Pagar</span>
+                              </button>
                             )}
                             {run.status !== 'pending' && (
                               <button

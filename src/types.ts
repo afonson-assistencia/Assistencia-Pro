@@ -63,7 +63,7 @@ export interface Motoboy {
   createdAt: any;
 }
 
-export type DeliveryStatus = 'pending' | 'approved' | 'rejected';
+export type DeliveryStatus = 'pending' | 'approved' | 'rejected' | 'paid';
 
 export interface DeliveryRun {
   id: string;
