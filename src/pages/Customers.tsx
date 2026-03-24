@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Customer } from '../types';
-import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart, Loader2 } from 'lucide-react';
+import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart, Loader2, MoreVertical } from 'lucide-react';
 import { useAuth } from '../App';
 import { maskPhone } from '../utils/masks';
 import { ServiceOrder, Sale } from '../types';
@@ -19,6 +20,7 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerOrders, setCustomerOrders] = useState<ServiceOrder[]>([]);
   const [customerSales, setCustomerSales] = useState<Sale[]>([]);
+  const [actionMenuCustomer, setActionMenuCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [success, setSuccess] = useState<string | null>(null);
@@ -29,29 +31,20 @@ export default function Customers() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => setSuccess(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [success]);
-
-  async function fetchCustomers() {
-    try {
-      const q = query(collection(db, 'customers'), orderBy('name', 'asc'));
-      const snap = await getDocs(q);
+    const q = query(collection(db, 'customers'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
       const list: Customer[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(list);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    } finally {
       setLoading(false);
-    }
-  }
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'customers');
+      setError('Erro ao carregar clientes.');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,9 +67,8 @@ export default function Customers() {
         setSuccess('Cliente cadastrado com sucesso!');
       }
       closeModal();
-      fetchCustomers();
     } catch (error: any) {
-      console.error('Error saving customer:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'customers');
       setError('Erro ao salvar cliente. Verifique os dados e tente novamente.');
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
@@ -89,30 +81,10 @@ export default function Customers() {
       setError(null);
       await deleteDoc(doc(db, 'customers', id));
       setDeletingCustomer(null);
-      fetchCustomers();
+      setSuccess('Cliente excluído com sucesso!');
     } catch (error: any) {
-      console.error('Error deleting customer:', error);
-      
-      // Detailed error info for debugging
-      const errInfo = {
-        error: error instanceof Error ? error.message : String(error),
-        operationType: 'delete',
-        path: `customers/${id}`,
-        authInfo: {
-          userId: auth.currentUser?.uid,
-          email: auth.currentUser?.email,
-          emailVerified: auth.currentUser?.emailVerified,
-          isAnonymous: auth.currentUser?.isAnonymous,
-          providerInfo: auth.currentUser?.providerData.map(p => ({
-            providerId: p.providerId,
-            displayName: p.displayName,
-            email: p.email
-          })) || []
-        }
-      };
-      
-      console.error('Firestore Error Details:', JSON.stringify(errInfo));
-      setError(`Erro ao excluir cliente: ${error.message || 'Sem permissão'}. Detalhes no console.`);
+      handleFirestoreError(error, OperationType.DELETE, `customers/${id}`);
+      setError(`Erro ao excluir cliente: ${error.message || 'Sem permissão'}.`);
     } finally {
       setActionLoading(prev => ({ ...prev, delete: false }));
     }
@@ -202,7 +174,7 @@ export default function Customers() {
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-left text-sm min-w-[600px] sm:min-w-0">
+        <table className="w-full text-left text-sm min-w-[700px]">
           <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
             <tr>
               <th className="px-6 py-3 font-semibold">Nome</th>
@@ -217,7 +189,8 @@ export default function Customers() {
                   <td className="px-6 py-4 font-medium text-[var(--text-main)]">{customer.name}</td>
                   <td className="px-6 py-4 text-[var(--text-muted)]">{customer.phone}</td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      {/* Desktop Actions */}
+                      <div className="hidden sm:flex items-center justify-end gap-2">
                         <a
                           href={`https://wa.me/55${customer.phone.replace(/\D/g, '')}`}
                           target="_blank"
@@ -249,6 +222,16 @@ export default function Customers() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
+
+                      {/* Mobile Actions */}
+                      <div className="sm:hidden flex justify-end">
+                        <button
+                          onClick={() => setActionMenuCustomer(customer)}
+                          className="p-2 text-[var(--text-muted)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                        >
+                          <MoreVertical className="h-5 w-5" />
+                        </button>
+                      </div>
                     </td>
                 </tr>
               ))
@@ -262,6 +245,62 @@ export default function Customers() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal Ações Mobile */}
+      {actionMenuCustomer && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-t-2xl sm:rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)] animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg text-[var(--text-main)]">Ações: {actionMenuCustomer.name}</h3>
+              <button onClick={() => setActionMenuCustomer(null)} className="text-[var(--text-muted)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <a
+                href={`https://wa.me/55${actionMenuCustomer.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary flex-col gap-2 py-4 text-green-600 dark:text-green-400 h-auto"
+                onClick={() => setActionMenuCustomer(null)}
+              >
+                <Phone className="h-6 w-6" />
+                <span>Ligar/Whats</span>
+              </a>
+              <button
+                onClick={() => {
+                  openDetails(actionMenuCustomer);
+                  setActionMenuCustomer(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-slate-600 dark:text-slate-400 h-auto"
+              >
+                <Eye className="h-6 w-6" />
+                <span>Ver</span>
+              </button>
+              <button
+                onClick={() => {
+                  openModal(actionMenuCustomer);
+                  setActionMenuCustomer(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-blue-600 dark:text-blue-400 h-auto"
+              >
+                <Edit2 className="h-6 w-6" />
+                <span>Editar</span>
+              </button>
+              <button
+                onClick={() => {
+                  setDeletingCustomer(actionMenuCustomer.id);
+                  setActionMenuCustomer(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-red-600 dark:text-red-400 h-auto"
+              >
+                <Trash2 className="h-6 w-6" />
+                <span>Excluir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Confirmação de Exclusão */}
       {deletingCustomer && (

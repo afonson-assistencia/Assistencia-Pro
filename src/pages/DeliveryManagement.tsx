@@ -1,62 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { DeliveryLocation, DeliveryRun, DeliveryStatus, Motoboy } from '../types';
-import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2, Search } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2, Search, MoreVertical, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
 import { Navigate } from 'react-router-dom';
 
-enum OperationType {
+enum OperationTypeLocal {
   CREATE = 'create',
   UPDATE = 'update',
   DELETE = 'delete',
   LIST = 'list',
   GET = 'get',
   WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
 }
 
 export default function DeliveryManagement() {
@@ -73,6 +32,7 @@ export default function DeliveryManagement() {
   
   const [isMotoboyModalOpen, setIsMotoboyModalOpen] = useState(false);
   const [newMotoboyName, setNewMotoboyName] = useState('');
+  const [actionMenuRun, setActionMenuRun] = useState<DeliveryRun | null>(null);
   
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   
@@ -89,17 +49,17 @@ export default function DeliveryManagement() {
     const qLocations = query(collection(db, 'deliveryLocations'), orderBy('name', 'asc'));
     const unsubscribeLocations = onSnapshot(qLocations, (snap) => {
       setLocations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryLocation)));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryLocations'));
 
     const qRuns = query(collection(db, 'deliveryRuns'), orderBy('createdAt', 'desc'));
     const unsubscribeRuns = onSnapshot(qRuns, (snap) => {
       setRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns'));
 
     const qMotoboys = query(collection(db, 'motoboys'), orderBy('name', 'asc'));
     const unsubscribeMotoboys = onSnapshot(qMotoboys, (snap) => {
       setMotoboys(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Motoboy)));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'motoboys'));
 
     return () => {
       unsubscribeLocations();
@@ -293,7 +253,7 @@ export default function DeliveryManagement() {
               Controle de Corridas
             </h2>
             <div className="flex flex-col sm:flex-row items-center gap-2">
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   type="text"
@@ -364,8 +324,8 @@ export default function DeliveryManagement() {
           </div>
 
           <div className="card overflow-x-auto">
-            <div className="min-w-[600px] lg:min-w-0">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm min-w-[700px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Motoboy</th>
@@ -398,7 +358,8 @@ export default function DeliveryManagement() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
+                          {/* Desktop Actions */}
+                          <div className="hidden sm:flex justify-end gap-2">
                             {run.status === 'pending' && (
                               <>
                                 <button
@@ -440,6 +401,16 @@ export default function DeliveryManagement() {
                                 Reverter
                               </button>
                             )}
+                          </div>
+
+                          {/* Mobile Actions Button */}
+                          <div className="sm:hidden">
+                            <button
+                              onClick={() => setActionMenuRun(run)}
+                              className="btn btn-secondary h-8 w-8 p-0"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -541,6 +512,70 @@ export default function DeliveryManagement() {
               <p className="text-[var(--text-muted)]">Nenhum motoboy cadastrado.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal Ações Mobile Corridas */}
+      {actionMenuRun && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-t-2xl sm:rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)] animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg text-[var(--text-main)]">Ações: Corrida #{actionMenuRun.id.slice(-4).toUpperCase()}</h3>
+              <button onClick={() => setActionMenuRun(null)} className="text-[var(--text-muted)]">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {actionMenuRun.status === 'pending' && (
+                <>
+                  <button
+                    onClick={() => {
+                      handleUpdateRunStatus(actionMenuRun.id, 'approved');
+                      setActionMenuRun(null);
+                    }}
+                    className="btn btn-secondary flex-col gap-2 py-4 text-emerald-600 dark:text-emerald-400 h-auto"
+                  >
+                    <CheckCircle className="h-6 w-6" />
+                    <span>Aprovar</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleUpdateRunStatus(actionMenuRun.id, 'rejected');
+                      setActionMenuRun(null);
+                    }}
+                    className="btn btn-secondary flex-col gap-2 py-4 text-red-600 dark:text-red-400 h-auto"
+                  >
+                    <XCircle className="h-6 w-6" />
+                    <span>Rejeitar</span>
+                  </button>
+                </>
+              )}
+              {actionMenuRun.status === 'approved' && (
+                <button
+                  onClick={() => {
+                    handleUpdateRunStatus(actionMenuRun.id, 'paid');
+                    setActionMenuRun(null);
+                  }}
+                  className="btn btn-secondary flex-col gap-2 py-4 text-blue-600 dark:text-blue-400 h-auto col-span-2"
+                >
+                  <DollarSign className="h-6 w-6" />
+                  <span>Marcar como Pago</span>
+                </button>
+              )}
+              {actionMenuRun.status !== 'pending' && (
+                <button
+                  onClick={() => {
+                    handleUpdateRunStatus(actionMenuRun.id, 'pending');
+                    setActionMenuRun(null);
+                  }}
+                  className="btn btn-secondary flex-col gap-2 py-4 text-[var(--text-muted)] h-auto col-span-2"
+                >
+                  <Clock className="h-6 w-6" />
+                  <span>Reverter para Pendente</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

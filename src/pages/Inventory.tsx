@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Product, Category } from '../types';
 import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '../App';
@@ -40,7 +41,7 @@ export default function Inventory() {
       setProducts(list);
       setLoading(false);
     }, (err) => {
-      console.error('Error fetching products:', err);
+      handleFirestoreError(err, OperationType.GET, 'products');
       setError('Erro ao carregar produtos.');
       setLoading(false);
     });
@@ -55,7 +56,7 @@ export default function Inventory() {
       });
       setCategories(list);
     }, (err) => {
-      console.error('Error fetching categories:', err);
+      handleFirestoreError(err, OperationType.GET, 'categories');
       setError('Erro ao carregar categorias.');
     });
 
@@ -102,7 +103,7 @@ export default function Inventory() {
       setIsModalOpen(false);
       resetForm();
     } catch (error) {
-      console.error('Error saving product:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'products');
       setError('Erro ao salvar produto.');
     } finally {
       setActionLoading(prev => ({ ...prev, submitProduct: false }));
@@ -128,7 +129,7 @@ export default function Inventory() {
       setCategoryName('');
       setEditingCategory(null);
     } catch (error) {
-      console.error('Error saving category:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'categories');
       setError('Erro ao salvar categoria.');
     } finally {
       setActionLoading(prev => ({ ...prev, submitCategory: false }));
@@ -142,7 +143,7 @@ export default function Inventory() {
       await deleteDoc(doc(db, 'categories', id));
       setSuccess('Categoria excluída com sucesso!');
     } catch (error) {
-      console.error('Error deleting category:', error);
+      handleFirestoreError(error, OperationType.DELETE, `categories/${id}`);
       setError('Erro ao excluir categoria.');
     } finally {
       setActionLoading(prev => ({ ...prev, [`deleteCategory_${id}`]: false }));
@@ -176,7 +177,7 @@ export default function Inventory() {
     try {
       await updateDoc(doc(db, 'products', id), { stock: newStock });
     } catch (error) {
-      console.error('Error updating stock:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `products/${id}`);
     } finally {
       setActionLoading(prev => ({ ...prev, [`updateStock_${id}`]: false }));
     }
@@ -189,7 +190,7 @@ export default function Inventory() {
       await deleteDoc(doc(db, 'products', id));
       setDeletingProduct(null);
     } catch (error: any) {
-      console.error('Error deleting product:', error);
+      handleFirestoreError(error, OperationType.DELETE, `products/${id}`);
       setError('Erro ao excluir produto: ' + (error.message || 'Sem permissão'));
     } finally {
       setActionLoading(prev => ({ ...prev, [`deleteProduct_${id}`]: false }));
@@ -400,7 +401,7 @@ export default function Inventory() {
           {/* Desktop View (Table) */}
           <div className="hidden sm:block card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm min-w-[700px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
                   <tr>
                     <th className="px-6 py-3 font-semibold">Produto</th>

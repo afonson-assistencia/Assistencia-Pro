@@ -109,6 +109,15 @@ export interface Expense {
   createdAt: any;
 }
 
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  quantity: number;
+  productId?: string;
+  bought: boolean;
+  createdAt: any;
+}
+
 export const STATUS_LABELS: Record<OSStatus, string> = {
   'pending': 'Pendente',
   'in-progress': 'Em Andamento',

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2 } from 'lucide-react';
+import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -44,6 +45,7 @@ export default function ServiceOrders() {
   const [viewingOrder, setViewingOrder] = useState<ServiceOrder | null>(null);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
+  const [actionMenuOrder, setActionMenuOrder] = useState<ServiceOrder | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -51,40 +53,32 @@ export default function ServiceOrders() {
   });
 
   useEffect(() => {
-    async function init() {
-      try {
-        await Promise.all([fetchOrders(), fetchCustomers()]);
-      } catch (error) {
-        console.error('Initialization error:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    init();
-  }, []);
-
-  async function fetchOrders() {
-    try {
-      const q = query(collection(db, 'serviceOrders'), orderBy('createdAt', 'desc'));
-      const snap = await getDocs(q);
+    const qOrders = query(collection(db, 'serviceOrders'), orderBy('createdAt', 'desc'));
+    const unsubscribeOrders = onSnapshot(qOrders, (snap) => {
       const list: ServiceOrder[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as ServiceOrder));
       setOrders(list);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    }
-  }
+      setLoading(false);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'serviceOrders');
+      setError('Erro ao carregar ordens de serviço.');
+      setLoading(false);
+    });
 
-  async function fetchCustomers() {
-    try {
-      const snap = await getDocs(query(collection(db, 'customers'), orderBy('name', 'asc')));
+    const qCustomers = query(collection(db, 'customers'), orderBy('name', 'asc'));
+    const unsubscribeCustomers = onSnapshot(qCustomers, (snap) => {
       const list: Customer[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(list);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    }
-  }
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'customers');
+    });
+
+    return () => {
+      unsubscribeOrders();
+      unsubscribeCustomers();
+    };
+  }, []);
 
   const handleAddOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,10 +164,8 @@ export default function ServiceOrders() {
 
       setIsModalOpen(false);
       resetForm();
-      fetchOrders();
-      fetchCustomers();
     } catch (error: any) {
-      console.error('Error adding/updating order:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'serviceOrders');
       setError(`Erro ao ${editingOrder ? 'atualizar' : 'criar'} ordem de serviço. Verifique os dados e tente novamente.`);
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
@@ -258,10 +250,9 @@ export default function ServiceOrders() {
       } catch (n8nErr) {
         console.warn('N8N status update send failed:', n8nErr);
       }
-      
-      fetchOrders();
     } catch (error) {
-      console.error('Error updating status:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `serviceOrders/${id}`);
+      setError('Erro ao atualizar status.');
     } finally {
       setActionLoading(prev => ({ ...prev, [`status_${id}`]: false }));
     }
@@ -291,9 +282,8 @@ export default function ServiceOrders() {
       setError(null);
       await deleteDoc(doc(db, 'serviceOrders', id));
       setDeletingOrder(null);
-      fetchOrders();
     } catch (error: any) {
-      console.error('Error deleting order:', error);
+      handleFirestoreError(error, OperationType.DELETE, `serviceOrders/${id}`);
       setError('Erro ao excluir ordem de serviço: ' + (error.message || 'Sem permissão'));
     } finally {
       setActionLoading(prev => ({ ...prev, delete: false }));
@@ -517,7 +507,7 @@ Obrigado pela preferência!`;
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm min-w-[800px]">
               <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
                 <tr>
                   <th className="px-6 py-3 font-semibold">ID</th>
@@ -603,6 +593,73 @@ Obrigado pela preferência!`;
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ações Mobile */}
+      {actionMenuOrder && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-t-2xl sm:rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)] animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg text-[var(--text-main)]">Ações: #{actionMenuOrder.id.slice(-4).toUpperCase()}</h3>
+              <button onClick={() => setActionMenuOrder(null)} className="text-[var(--text-muted)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <a
+                href={generateWhatsAppLink(actionMenuOrder)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary flex-col gap-2 py-4 text-green-600 dark:text-green-400 h-auto"
+                onClick={() => setActionMenuOrder(null)}
+              >
+                <MessageSquare className="h-6 w-6" />
+                <span>WhatsApp</span>
+              </a>
+              <button
+                onClick={() => {
+                  setViewingOrder(actionMenuOrder);
+                  setActionMenuOrder(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-slate-600 dark:text-slate-400 h-auto"
+              >
+                <Eye className="h-6 w-6" />
+                <span>Ver</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleEditOrder(actionMenuOrder);
+                  setActionMenuOrder(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-blue-600 dark:text-blue-400 h-auto"
+              >
+                <Edit2 className="h-6 w-6" />
+                <span>Editar</span>
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedOrder(actionMenuOrder);
+                  setTimeout(() => handlePrint(), 100);
+                  setActionMenuOrder(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-slate-600 dark:text-slate-400 h-auto"
+              >
+                <Printer className="h-6 w-6" />
+                <span>Imprimir</span>
+              </button>
+              <button
+                onClick={() => {
+                  setDeletingOrder(actionMenuOrder.id);
+                  setActionMenuOrder(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-red-600 dark:text-red-400 h-auto"
+              >
+                <Trash2 className="h-6 w-6" />
+                <span>Excluir</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -778,12 +835,22 @@ Obrigado pela preferência!`;
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Prazo de Entrega (Dias)</label>
-                <input
-                  type="number"
-                  className="input mt-1"
-                  value={deadlineDays}
-                  onChange={(e) => setDeadlineDays(parseInt(e.target.value))}
-                />
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="number"
+                    min="0"
+                    className="input flex-1"
+                    value={deadlineDays}
+                    onChange={(e) => setDeadlineDays(parseInt(e.target.value) || 0)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDeadlineDays(0)}
+                    className={`btn px-3 text-xs ${deadlineDays === 0 ? 'btn-primary' : 'btn-secondary'}`}
+                  >
+                    Hoje
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Garantia (Dias)</label>

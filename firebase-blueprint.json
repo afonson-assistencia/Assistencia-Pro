@@ -148,6 +148,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name"]
+    },
+    "shoppingList": {
+      "title": "Shopping List Item",
+      "description": "An item that needs to be purchased for inventory replenishment",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "productId": { "type": "string", "description": "Optional reference to an existing product" },
+        "bought": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "quantity", "bought"]
     }
   },
   "firestore": {
@@ -161,6 +175,7 @@
     "/categories": { "schema": "categories", "description": "Collection of inventory categories" },
     "/deliveryLocations": { "schema": "deliveryLocations", "description": "Collection of delivery locations" },
     "/deliveryRuns": { "schema": "deliveryRuns", "description": "Collection of delivery runs" },
-    "/motoboys": { "schema": "motoboys", "description": "Collection of motoboys" }
+    "/motoboys": { "schema": "motoboys", "description": "Collection of motoboys" },
+    "/shoppingList": { "schema": "shoppingList", "description": "Collection of items to buy" }
   }
 }

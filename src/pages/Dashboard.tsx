@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { ServiceOrder, Sale, Product, STATUS_LABELS, STATUS_COLORS } from '../types';
+import { ServiceOrder, Sale, Product, Expense, STATUS_LABELS, STATUS_COLORS } from '../types';
 import { ClipboardList, ShoppingCart, TrendingUp, AlertCircle, CheckCircle2, Clock, Calendar, DollarSign, Receipt, Package } from 'lucide-react';
 import { format, startOfDay, startOfWeek, startOfMonth, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -27,53 +27,63 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const now = new Date();
-        const todayS = startOfDay(now);
-        const weekS = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
-        const monthS = startOfMonth(now);
+    const now = new Date();
+    const todayS = startOfDay(now);
+    const weekS = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
+    const monthS = startOfMonth(now);
+
+    let sales: Sale[] = [];
+    let os: ServiceOrder[] = [];
+    let expenses: Expense[] = [];
+    let products: Product[] = [];
+    let activeOrdersCount = 0;
+    let readyOrdersCount = 0;
+    let recent: ServiceOrder[] = [];
+
+    const updateDashboard = () => {
+      let todayRev = 0;
+      let todayOSRev = 0;
+      let todaySalesRev = 0;
+      let weekRev = 0;
+      let monthRev = 0;
+      let monthExp = 0;
+
+      const dailyRevenue: Record<string, number> = {};
+      const dailyExpenses: Record<string, number> = {};
+      
+      // Initialize last 7 days for chart
+      for (let i = 6; i >= 0; i--) {
+        const d = subDays(now, i);
+        const dateStr = format(d, 'yyyy-MM-dd');
+        dailyRevenue[dateStr] = 0;
+        dailyExpenses[dateStr] = 0;
+      }
+
+      sales.forEach(data => {
+        const date = data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date);
+        const val = data.totalValue || 0;
         
-        // Fetch all sales, service orders, and expenses from start of month
-        let salesSnap, osSnap, expSnap, productsSnap;
-        try {
-          [salesSnap, osSnap, expSnap, productsSnap] = await Promise.all([
-            getDocs(query(collection(db, 'sales'), where('date', '>=', Timestamp.fromDate(monthS)))),
-            getDocs(query(collection(db, 'serviceOrders'), where('createdAt', '>=', Timestamp.fromDate(monthS)))),
-            getDocs(query(collection(db, 'expenses'), where('date', '>=', Timestamp.fromDate(monthS)))),
-            getDocs(collection(db, 'products'))
-          ]);
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, 'dashboard_initial_fetch');
-          return; // Should not reach here as handleFirestoreError throws
+        if (date >= todayS) {
+          todayRev += val;
+          todaySalesRev += val;
         }
+        if (date >= weekS) weekRev += val;
+        monthRev += val;
 
-        let todayRev = 0;
-        let todayOSRev = 0;
-        let todaySalesRev = 0;
-        let weekRev = 0;
-        let monthRev = 0;
-        let monthExp = 0;
+        const dateStr = format(date, 'yyyy-MM-dd');
+        if (dailyRevenue[dateStr] !== undefined) {
+          dailyRevenue[dateStr] += val;
+        }
+      });
 
-        const dailyRevenue: Record<string, number> = {};
-        const dailyExpenses: Record<string, number> = {};
+      os.forEach(data => {
+        const date = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt);
+        const val = data.totalValue || 0;
         
-        // Initialize last 7 days for chart
-        for (let i = 6; i >= 0; i--) {
-          const d = subDays(now, i);
-          const dateStr = format(d, 'yyyy-MM-dd');
-          dailyRevenue[dateStr] = 0;
-          dailyExpenses[dateStr] = 0;
-        }
-
-        salesSnap.forEach(doc => {
-          const data = doc.data();
-          const date = data.date.toDate();
-          const val = data.totalValue || 0;
-          
+        if (data.status === 'ready' || data.status === 'delivered') {
           if (date >= todayS) {
             todayRev += val;
-            todaySalesRev += val;
+            todayOSRev += val;
           }
           if (date >= weekS) weekRev += val;
           monthRev += val;
@@ -82,102 +92,96 @@ export default function Dashboard() {
           if (dailyRevenue[dateStr] !== undefined) {
             dailyRevenue[dateStr] += val;
           }
-        });
+        }
+      });
 
-        osSnap.forEach(doc => {
-          const data = doc.data();
-          const date = data.createdAt.toDate();
-          const val = data.totalValue || 0;
-          
-          if (data.status === 'ready' || data.status === 'delivered' || data.status === 'completed') {
-            if (date >= todayS) {
-              todayRev += val;
-              todayOSRev += val;
-            }
-            if (date >= weekS) weekRev += val;
-            monthRev += val;
+      const lowStock: Product[] = [];
+      products.forEach(p => {
+        if (p.stock <= 5) {
+          lowStock.push(p);
+        }
+      });
+      setLowStockProducts(lowStock);
 
-            const dateStr = format(date, 'yyyy-MM-dd');
-            if (dailyRevenue[dateStr] !== undefined) {
-              dailyRevenue[dateStr] += val;
-            }
-          }
-        });
-
-        const lowStock: Product[] = [];
-        productsSnap.forEach(doc => {
-          const p = { id: doc.id, ...doc.data() } as Product;
-          if (p.stock <= 5) {
-            lowStock.push(p);
-          }
-        });
-        setLowStockProducts(lowStock);
-
-        expSnap.forEach(doc => {
-          const data = doc.data();
-          const date = data.date.toDate();
-          const val = data.value || 0;
-          
-          monthExp += val;
-
-          const dateStr = format(date, 'yyyy-MM-dd');
-          if (dailyExpenses[dateStr] !== undefined) {
-            dailyExpenses[dateStr] += val;
-          }
-        });
-
-        // Prepare chart data
-        const chartArr = Object.keys(dailyRevenue).map(date => ({
-          name: format(new Date(date + 'T12:00:00'), 'dd/MM'),
-          revenue: dailyRevenue[date],
-          expenses: dailyExpenses[date]
-        }));
-
-        // Active Orders (pending + in-progress)
-        const activeQuery = query(
-          collection(db, 'serviceOrders'),
-          where('status', 'in', ['pending', 'in-progress'])
-        );
-        const activeSnap = await getDocs(activeQuery);
+      expenses.forEach(data => {
+        const date = data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date);
+        const val = data.value || 0;
         
-        // Ready Orders
-        const readyQuery = query(
-          collection(db, 'serviceOrders'),
-          where('status', '==', 'ready')
-        );
-        const readySnap = await getDocs(readyQuery);
+        monthExp += val;
 
-        // Recent Orders
-        const recentQuery = query(
-          collection(db, 'serviceOrders'),
-          orderBy('createdAt', 'desc'),
-          limit(5)
-        );
-        const recentSnap = await getDocs(recentQuery);
-        const recent: ServiceOrder[] = [];
-        recentSnap.forEach(doc => recent.push({ id: doc.id, ...doc.data() } as ServiceOrder));
+        const dateStr = format(date, 'yyyy-MM-dd');
+        if (dailyExpenses[dateStr] !== undefined) {
+          dailyExpenses[dateStr] += val;
+        }
+      });
 
-        setStats({
-          activeOrders: activeSnap.size,
-          readyOrders: readySnap.size,
-          todayRevenue: todayRev,
-          todayOSRevenue: todayOSRev,
-          todaySalesRevenue: todaySalesRev,
-          weekRevenue: weekRev,
-          monthRevenue: monthRev,
-          monthExpenses: monthExp,
-          monthProfit: monthRev - monthExp,
-        });
-        setChartData(chartArr);
-        setRecentOrders(recent);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
+      // Prepare chart data
+      const chartArr = Object.keys(dailyRevenue).map(date => ({
+        name: format(new Date(date + 'T12:00:00'), 'dd/MM'),
+        revenue: dailyRevenue[date],
+        expenses: dailyExpenses[date]
+      }));
 
-    fetchDashboardData();
+      setStats({
+        activeOrders: activeOrdersCount,
+        readyOrders: readyOrdersCount,
+        todayRevenue: todayRev,
+        todayOSRevenue: todayOSRev,
+        todaySalesRevenue: todaySalesRev,
+        weekRevenue: weekRev,
+        monthRevenue: monthRev,
+        monthExpenses: monthExp,
+        monthProfit: monthRev - monthExp,
+      });
+      setChartData(chartArr);
+      setRecentOrders(recent);
+      setLoading(false);
+    };
+
+    const unsubSales = onSnapshot(query(collection(db, 'sales'), where('date', '>=', Timestamp.fromDate(monthS))), (snap) => {
+      sales = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sale));
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'sales'));
+
+    const unsubOS = onSnapshot(query(collection(db, 'serviceOrders'), where('createdAt', '>=', Timestamp.fromDate(monthS))), (snap) => {
+      os = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'serviceOrders'));
+
+    const unsubExp = onSnapshot(query(collection(db, 'expenses'), where('date', '>=', Timestamp.fromDate(monthS))), (snap) => {
+      expenses = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'expenses'));
+
+    const unsubProducts = onSnapshot(collection(db, 'products'), (snap) => {
+      products = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'products'));
+
+    const unsubActive = onSnapshot(query(collection(db, 'serviceOrders'), where('status', 'in', ['pending', 'in-progress'])), (snap) => {
+      activeOrdersCount = snap.size;
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'serviceOrders/active'));
+
+    const unsubReady = onSnapshot(query(collection(db, 'serviceOrders'), where('status', '==', 'ready')), (snap) => {
+      readyOrdersCount = snap.size;
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'serviceOrders/ready'));
+
+    const unsubRecent = onSnapshot(query(collection(db, 'serviceOrders'), orderBy('createdAt', 'desc'), limit(5)), (snap) => {
+      recent = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
+      updateDashboard();
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'serviceOrders/recent'));
+
+    return () => {
+      unsubSales();
+      unsubOS();
+      unsubExp();
+      unsubProducts();
+      unsubActive();
+      unsubReady();
+      unsubRecent();
+    };
   }, []);
 
   if (loading) return (
@@ -316,7 +320,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-4">
               <QuickActionLink to="/service-orders" label="Nova O.S." icon={ClipboardList} />
               <QuickActionLink to="/sales" label="Nova Venda" icon={ShoppingCart} />
-              <QuickActionLink to="/cash-closure" label="Fechar Caixa" icon={DollarSign} />
+              <QuickActionLink to="/shopping-list" label="Lista Compras" icon={ShoppingCart} />
               <QuickActionLink to="/inventory" label="Ver Estoque" icon={Package} />
             </div>
           </div>

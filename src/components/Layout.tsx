@@ -37,6 +37,7 @@ export default function Layout() {
       { path: '/customers', label: 'Clientes', icon: Users },
       { path: '/service-orders', label: 'Ordens de Serviço', icon: ClipboardList },
       { path: '/inventory', label: 'Estoque', icon: Package },
+      { path: '/shopping-list', label: 'Lista de Compras', icon: ShoppingCart },
       { path: '/sales', label: 'Vendas', icon: ShoppingCart },
       { path: '/expenses', label: 'Despesas', icon: Receipt },
       { path: '/cash-closure', label: 'Fechamento', icon: Wallet },

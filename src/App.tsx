@@ -24,6 +24,7 @@ import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
 import CashClosure from './pages/CashClosure';
 import Settings from './pages/Settings';
+import ShoppingList from './pages/ShoppingList';
 import DeliveryManagement from './pages/DeliveryManagement';
 import MotoboyDashboard from './pages/MotoboyDashboard';
 import MotoboyLogin from './pages/MotoboyLogin';
@@ -152,6 +153,7 @@ export default function App() {
                 <Route path="customers" element={user ? <Customers /> : <Navigate to="/login" />} />
                 <Route path="service-orders" element={user ? <ServiceOrders /> : <Navigate to="/login" />} />
                 <Route path="inventory" element={user ? <Inventory /> : <Navigate to="/login" />} />
+                <Route path="shopping-list" element={user ? <ShoppingList /> : <Navigate to="/login" />} />
                 <Route path="sales" element={user ? <Sales /> : <Navigate to="/login" />} />
                 <Route path="expenses" element={user ? <Expenses /> : <Navigate to="/login" />} />
                 <Route path="cash-closure" element={user ? <CashClosure /> : <Navigate to="/login" />} />

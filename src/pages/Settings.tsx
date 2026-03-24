@@ -4,6 +4,7 @@ import { useAuth } from '../App';
 import { Save, Building2, Image as ImageIcon, CheckCircle2, AlertCircle, Users, Shield, Loader2 } from 'lucide-react';
 import { collection, query, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { UserProfile, UserRole } from '../types';
 
 export default function Settings() {
@@ -23,7 +24,7 @@ export default function Settings() {
       const q = query(collection(db, 'users'));
       const unsubscribe = onSnapshot(q, (snap) => {
         setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)));
-      });
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'users'));
       return () => unsubscribe();
     }
   }, [profile]);
@@ -32,7 +33,7 @@ export default function Settings() {
     try {
       await updateDoc(doc(db, 'users', userId), { role: newRole });
     } catch (error) {
-      console.error('Error updating role:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }
   };
 

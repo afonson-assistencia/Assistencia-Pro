@@ -125,7 +125,7 @@ export default function CashClosure() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Fechamento de Caixa</h1>

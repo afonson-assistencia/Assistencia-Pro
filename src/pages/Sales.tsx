@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Sale, Product } from '../types';
-import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus, Loader2 } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus, Loader2, MoreVertical, Eye } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
@@ -14,7 +15,9 @@ export default function Sales() {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<string | null>(null);
+  const [actionMenuSale, setActionMenuSale] = useState<Sale | null>(null);
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -30,47 +33,52 @@ export default function Sales() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSales();
-    fetchProducts();
-    fetchCustomers();
-  }, [filterDate]);
+    setLoading(true);
+    const start = startOfDay(new Date(filterDate + 'T12:00:00'));
+    const end = endOfDay(new Date(filterDate + 'T12:00:00'));
+    
+    const qSales = query(
+      collection(db, 'sales'),
+      where('date', '>=', Timestamp.fromDate(start)),
+      where('date', '<=', Timestamp.fromDate(end)),
+      orderBy('date', 'desc')
+    );
 
-  async function fetchSales() {
-    try {
-      setLoading(true);
-      const start = startOfDay(new Date(filterDate + 'T12:00:00'));
-      const end = endOfDay(new Date(filterDate + 'T12:00:00'));
-      
-      const q = query(
-        collection(db, 'sales'),
-        where('date', '>=', Timestamp.fromDate(start)),
-        where('date', '<=', Timestamp.fromDate(end)),
-        orderBy('date', 'desc')
-      );
-      const snap = await getDocs(q);
+    const unsubscribeSales = onSnapshot(qSales, (snap) => {
       const list: Sale[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Sale));
       setSales(list);
-    } catch (error) {
-      console.error('Error fetching sales:', error);
-    } finally {
       setLoading(false);
-    }
-  }
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'sales');
+      setError('Erro ao carregar vendas.');
+      setLoading(false);
+    });
 
-  async function fetchProducts() {
-    const snap = await getDocs(query(collection(db, 'products'), orderBy('name', 'asc')));
-    const list: Product[] = [];
-    snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Product));
-    setProducts(list);
-  }
+    const qProducts = query(collection(db, 'products'), orderBy('name', 'asc'));
+    const unsubscribeProducts = onSnapshot(qProducts, (snap) => {
+      const list: Product[] = [];
+      snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Product));
+      setProducts(list);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'products');
+    });
 
-  async function fetchCustomers() {
-    const snap = await getDocs(query(collection(db, 'customers'), orderBy('name', 'asc')));
-    const list: Customer[] = [];
-    snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Customer));
-    setCustomers(list);
-  }
+    const qCustomers = query(collection(db, 'customers'), orderBy('name', 'asc'));
+    const unsubscribeCustomers = onSnapshot(qCustomers, (snap) => {
+      const list: Customer[] = [];
+      snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Customer));
+      setCustomers(list);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'customers');
+    });
+
+    return () => {
+      unsubscribeSales();
+      unsubscribeProducts();
+      unsubscribeCustomers();
+    };
+  }, [filterDate]);
 
   const addItem = () => {
     const product = products.find(p => p.id === selectedProductId);
@@ -149,10 +157,8 @@ export default function Sales() {
       setCustomerId('');
       setCurrentItems([]);
       setDiscount(0);
-      fetchSales();
-      fetchProducts();
     } catch (error) {
-      console.error('Error adding sale:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'sales');
       setError('Erro ao registrar venda.');
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
@@ -165,9 +171,8 @@ export default function Sales() {
       setError(null);
       await deleteDoc(doc(db, 'sales', id));
       setDeletingSale(null);
-      fetchSales();
     } catch (error: any) {
-      console.error('Error deleting sale:', error);
+      handleFirestoreError(error, OperationType.DELETE, `sales/${id}`);
       setError('Erro ao excluir venda: ' + (error.message || 'Sem permissão'));
     } finally {
       setActionLoading(prev => ({ ...prev, delete: false }));
@@ -265,8 +270,8 @@ export default function Sales() {
         </div>
 
         <div className="card overflow-x-auto lg:col-span-2">
-          <div className="min-w-[700px] lg:min-w-0">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[700px]">
               <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
                 <tr>
                   <th className="px-6 py-3 font-semibold">Cliente</th>
@@ -308,13 +313,22 @@ export default function Sales() {
                         {sale.date?.toDate ? format(sale.date.toDate(), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setDeletingSale(sale.id)}
-                          className="btn-secondary text-red-600 hover:text-red-700 p-2 rounded-lg"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setViewingSale(sale)}
+                            className="btn-secondary text-slate-600 hover:text-slate-700 p-2 rounded-lg"
+                            title="Ver Detalhes"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingSale(sale.id)}
+                            className="btn-secondary text-red-600 hover:text-red-700 p-2 rounded-lg"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -330,6 +344,101 @@ export default function Sales() {
           </div>
         </div>
       </div>
+
+      {/* Modal Ações Mobile */}
+      {actionMenuSale && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-t-2xl sm:rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)] animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg text-[var(--text-main)]">Ações: Venda #{actionMenuSale.id.slice(-4).toUpperCase()}</h3>
+              <button onClick={() => setActionMenuSale(null)} className="text-[var(--text-muted)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => {
+                  setViewingSale(actionMenuSale);
+                  setActionMenuSale(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-slate-600 dark:text-slate-400 h-auto"
+              >
+                <Eye className="h-6 w-6" />
+                <span>Ver</span>
+              </button>
+              <button
+                onClick={() => {
+                  setDeletingSale(actionMenuSale.id);
+                  setActionMenuSale(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-red-600 dark:text-red-400 h-auto"
+              >
+                <Trash2 className="h-6 w-6" />
+                <span>Excluir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalhes da Venda */}
+      {viewingSale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)]">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[var(--text-main)]">Detalhes da Venda</h2>
+              <button onClick={() => setViewingSale(null)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-muted)]">Cliente:</span>
+                <span className="font-medium text-[var(--text-main)]">{viewingSale.customerName || 'Consumidor Final'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--text-muted)]">Data:</span>
+                <span className="font-medium text-[var(--text-main)]">
+                  {viewingSale.date?.toDate ? format(viewingSale.date.toDate(), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}
+                </span>
+              </div>
+              <div className="border-t border-[var(--border-color)] pt-4">
+                <h3 className="text-sm font-bold text-[var(--text-main)] mb-2">Itens:</h3>
+                <div className="space-y-2">
+                  {viewingSale.items?.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-[var(--text-main)]">{item.productName} (x{item.quantity})</span>
+                      <span className="font-medium text-[var(--text-main)]">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-[var(--border-color)] pt-4 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[var(--text-muted)]">Subtotal:</span>
+                  <span className="text-[var(--text-main)]">R$ {(viewingSale.totalValue + (viewingSale.discount || 0)).toFixed(2)}</span>
+                </div>
+                {viewingSale.discount > 0 && (
+                  <div className="flex justify-between text-sm text-red-500">
+                    <span>Desconto:</span>
+                    <span>- R$ {viewingSale.discount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-lg font-bold text-[var(--text-main)] pt-2">
+                  <span>Total:</span>
+                  <span>R$ {viewingSale.totalValue.toFixed(2)}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingSale(null)}
+                className="btn btn-secondary w-full mt-4"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Confirmação de Exclusão */}
       {deletingSale && (

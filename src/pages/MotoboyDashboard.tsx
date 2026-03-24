@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { useAuth } from '../App';
 import { DeliveryLocation, DeliveryRun, Motoboy } from '../types';
 import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2 } from 'lucide-react';
@@ -31,7 +32,7 @@ export default function MotoboyDashboard() {
     const qLocations = query(collection(db, 'deliveryLocations'), orderBy('name', 'asc'));
     const unsubscribeLocations = onSnapshot(qLocations, (snap) => {
       setLocations(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryLocation)));
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryLocations'));
 
     // Fetch runs for this motoboy and selected date
     if (profile.motoboyId) {
@@ -44,7 +45,7 @@ export default function MotoboyDashboard() {
 
       const unsubscribeRuns = onSnapshot(qRuns, (snap) => {
         setRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
-      });
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns'));
 
       // Fetch ALL pending runs for this motoboy to calculate total balance
       const qAllPending = query(
@@ -55,7 +56,7 @@ export default function MotoboyDashboard() {
 
       const unsubscribeAllPending = onSnapshot(qAllPending, (snap) => {
         setAllPendingRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
-      });
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns/pending'));
 
       return () => {
         unsubscribeLocations();
@@ -111,7 +112,7 @@ export default function MotoboyDashboard() {
       setQuantity('1');
       setTempRuns([]);
     } catch (error) {
-      console.error('Error adding runs:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'deliveryRuns');
       alert('Erro ao salvar corridas. Tente novamente.');
     } finally {
       setIsSubmitting(false);

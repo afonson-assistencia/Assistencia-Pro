@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Expense } from '../types';
 import { Plus, Search, Trash2, Receipt, Calendar, X, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -24,22 +25,20 @@ export default function Expenses() {
   const categories = ['Peças', 'Aluguel', 'Energia', 'Internet', 'Marketing', 'Ferramentas', 'Outros'];
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
-
-  async function fetchExpenses() {
-    try {
-      const q = query(collection(db, 'expenses'), orderBy('date', 'desc'));
-      const snap = await getDocs(q);
+    const q = query(collection(db, 'expenses'), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
       const list: Expense[] = [];
       snap.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Expense));
       setExpenses(list);
-    } catch (error) {
-      console.error('Error fetching expenses:', error);
-    } finally {
       setLoading(false);
-    }
-  }
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'expenses');
+      setError('Erro ao carregar despesas.');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,9 +54,8 @@ export default function Expenses() {
       });
       setIsModalOpen(false);
       resetForm();
-      fetchExpenses();
     } catch (error) {
-      console.error('Error adding expense:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'expenses');
       setError('Erro ao registrar despesa.');
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
@@ -70,9 +68,8 @@ export default function Expenses() {
       setError(null);
       await deleteDoc(doc(db, 'expenses', id));
       setDeletingExpense(null);
-      fetchExpenses();
     } catch (error: any) {
-      console.error('Error deleting expense:', error);
+      handleFirestoreError(error, OperationType.DELETE, `expenses/${id}`);
       setError('Erro ao excluir despesa: ' + (error.message || 'Sem permissão'));
     } finally {
       setActionLoading(prev => ({ ...prev, delete: false }));
@@ -120,9 +117,9 @@ export default function Expenses() {
         </div>
 
         <div className="card overflow-x-auto lg:col-span-2">
-          <div className="min-w-[600px] lg:min-w-0">
-            <table className="w-full text-left text-sm">
-            <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[600px]">
+              <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
               <tr>
                 <th className="px-6 py-3 font-semibold">Descrição</th>
                 <th className="px-6 py-3 font-semibold">Categoria</th>
