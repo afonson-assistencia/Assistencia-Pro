@@ -789,7 +789,7 @@ Obrigado pela preferência!`;
                   step="0.01"
                   className="input mt-1"
                   value={totalValue}
-                  onChange={(e) => setTotalValue(parseFloat(e.target.value))}
+                  onChange={(e) => setTotalValue(parseFloat(e.target.value) || 0)}
                 />
               </div>
               <div className="md:col-span-2">
@@ -858,7 +858,7 @@ Obrigado pela preferência!`;
                   type="number"
                   className="input mt-1"
                   value={warrantyDays}
-                  onChange={(e) => setWarrantyDays(parseInt(e.target.value))}
+                  onChange={(e) => setWarrantyDays(parseInt(e.target.value) || 0)}
                 />
               </div>
               <div className="md:col-span-2">

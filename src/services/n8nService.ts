@@ -10,9 +10,9 @@ export async function sendToN8N(payload: any) {
     // Basic URL validation
     new URL(webhookUrl);
   } catch (e) {
-    const msg = `Invalid N8N_WEBHOOK_URL: ${webhookUrl}`;
-    console.error(msg);
-    throw new Error(msg);
+    const msg = `N8N_WEBHOOK_URL is not a valid URL: ${webhookUrl}. Skipping integration.`;
+    console.warn(msg);
+    return { skipped: true, reason: 'Invalid N8N_WEBHOOK_URL' };
   }
 
   try {

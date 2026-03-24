@@ -41,7 +41,10 @@ export interface Product {
   price: number;
   stock: number;
   category?: string;
+  imei?: string;
+  description?: string;
   createdAt: any;
+  updatedAt?: any;
 }
 
 export interface Category {
@@ -83,10 +86,11 @@ export interface DeliveryRun {
 }
 
 export interface SaleItem {
-  productId: string;
+  productId?: string | null;
   productName: string;
   quantity: number;
   price: number;
+  imei?: string | null;
 }
 
 export interface Sale {

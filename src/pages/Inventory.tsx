@@ -28,6 +28,8 @@ export default function Inventory() {
   const [price, setPrice] = useState(0);
   const [stock, setStock] = useState(0);
   const [category, setCategory] = useState('');
+  const [imei, setImei] = useState('');
+  const [description, setDescription] = useState('');
   const [categoryName, setCategoryName] = useState('');
 
   useEffect(() => {
@@ -87,6 +89,8 @@ export default function Inventory() {
           price,
           stock,
           category,
+          imei,
+          description,
           updatedAt: serverTimestamp(),
         });
         setSuccess('Produto atualizado com sucesso!');
@@ -96,6 +100,8 @@ export default function Inventory() {
           price,
           stock,
           category,
+          imei,
+          description,
           createdAt: serverTimestamp(),
         });
         setSuccess('Produto cadastrado com sucesso!');
@@ -157,6 +163,8 @@ export default function Inventory() {
       setPrice(product.price);
       setStock(product.stock);
       setCategory(product.category || '');
+      setImei(product.imei || '');
+      setDescription(product.description || '');
     } else {
       setEditingProduct(null);
       resetForm();
@@ -170,6 +178,8 @@ export default function Inventory() {
     setPrice(0);
     setStock(0);
     setCategory('');
+    setImei('');
+    setDescription('');
   };
 
   const updateStock = async (id: string, newStock: number) => {
@@ -325,6 +335,7 @@ export default function Inventory() {
                     <div>
                       <h3 className="font-bold text-[var(--text-main)]">{product.name}</h3>
                       <p className="text-xs text-[var(--text-muted)]">{product.category || 'Sem Categoria'}</p>
+                      {product.imei && <p className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-1">IMEI: {product.imei}</p>}
                     </div>
                     <div className="relative">
                       <button
@@ -405,6 +416,7 @@ export default function Inventory() {
                 <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
                   <tr>
                     <th className="px-6 py-3 font-semibold">Produto</th>
+                    <th className="px-6 py-3 font-semibold">IMEI/Serial</th>
                     <th className="px-6 py-3 font-semibold">Categoria</th>
                     <th className="px-6 py-3 font-semibold">Preço</th>
                     <th className="px-6 py-3 font-semibold">Estoque</th>
@@ -415,7 +427,13 @@ export default function Inventory() {
                   {filteredProducts.length > 0 ? (
                     filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-6 py-4 font-medium text-[var(--text-main)]">{product.name}</td>
+                        <td className="px-6 py-4 font-medium text-[var(--text-main)]">
+                          <div>
+                            {product.name}
+                            {product.description && <p className="text-[10px] text-[var(--text-muted)] font-normal line-clamp-1">{product.description}</p>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-[var(--text-muted)] font-mono text-xs">{product.imei || '-'}</td>
                         <td className="px-6 py-4 text-[var(--text-muted)]">{product.category || '-'}</td>
                         <td className="px-6 py-4 text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</td>
                         <td className="px-6 py-4">
@@ -496,7 +514,7 @@ export default function Inventory() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-[var(--text-muted)]">
+                      <td colSpan={6} className="px-6 py-8 text-center text-[var(--text-muted)]">
                         Nenhum produto encontrado.
                       </td>
                     </tr>
@@ -584,7 +602,7 @@ export default function Inventory() {
                     required
                     className="input mt-1"
                     value={price}
-                    onChange={(e) => setPrice(parseFloat(e.target.value))}
+                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
                   />
                 </div>
                 <div>
@@ -594,9 +612,28 @@ export default function Inventory() {
                     required
                     className="input mt-1"
                     value={stock}
-                    onChange={(e) => setStock(parseInt(e.target.value))}
+                    onChange={(e) => setStock(parseInt(e.target.value) || 0)}
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[var(--text-muted)]">IMEI / Serial (Opcional)</label>
+                <input
+                  type="text"
+                  className="input mt-1"
+                  placeholder="Ex: 354678..."
+                  value={imei}
+                  onChange={(e) => setImei(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Descrição / Observações</label>
+                <textarea
+                  className="input mt-1 min-h-[80px]"
+                  placeholder="Ex: Cor preta, 128GB, com marcas de uso..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
               </div>
               <div className="flex gap-3 pt-4">
                 <button

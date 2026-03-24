@@ -371,7 +371,7 @@ export default function ShoppingList() {
                   min="1"
                   className="input mt-1"
                   value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value))}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                 />
               </div>
 

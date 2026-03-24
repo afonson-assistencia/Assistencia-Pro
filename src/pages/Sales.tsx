@@ -32,6 +32,12 @@ export default function Sales() {
   const [discount, setDiscount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Manual entry state
+  const [isManualEntry, setIsManualEntry] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualPrice, setManualPrice] = useState(0);
+  const [manualImei, setManualImei] = useState('');
+
   useEffect(() => {
     setLoading(true);
     const start = startOfDay(new Date(filterDate + 'T12:00:00'));
@@ -81,6 +87,28 @@ export default function Sales() {
   }, [filterDate]);
 
   const addItem = () => {
+    if (isManualEntry) {
+      if (!manualName || manualPrice <= 0) {
+        setError('Preencha o nome e o preço do item avulso.');
+        return;
+      }
+
+      setCurrentItems([...currentItems, {
+        productName: manualName,
+        quantity: selectedQuantity,
+        price: manualPrice,
+        imei: manualImei || null,
+        productId: null
+      }]);
+
+      setManualName('');
+      setManualPrice(0);
+      setManualImei('');
+      setSelectedQuantity(1);
+      setError(null);
+      return;
+    }
+
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
     
@@ -105,7 +133,8 @@ export default function Sales() {
         productId: product.id,
         productName: product.name,
         quantity: selectedQuantity,
-        price: product.price
+        price: product.price,
+        imei: product.imei || null
       }]);
     }
     
@@ -114,8 +143,8 @@ export default function Sales() {
     setError(null);
   };
 
-  const removeItem = (productId: string) => {
-    setCurrentItems(currentItems.filter(item => item.productId !== productId));
+  const removeItem = (index: number) => {
+    setCurrentItems(currentItems.filter((_, i) => i !== index));
   };
 
   const handleAddSale = async (e: React.FormEvent) => {
@@ -143,13 +172,15 @@ export default function Sales() {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Update Stock for each item
+      // 2. Update Stock for each item (only for inventory items)
       for (const item of currentItems) {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          await updateDoc(doc(db, 'products', item.productId), {
-            stock: product.stock - item.quantity
-          });
+        if (item.productId) {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            await updateDoc(doc(db, 'products', item.productId), {
+              stock: product.stock - item.quantity
+            });
+          }
         }
       }
 
@@ -406,9 +437,12 @@ export default function Sales() {
                 <h3 className="text-sm font-bold text-[var(--text-main)] mb-2">Itens:</h3>
                 <div className="space-y-2">
                   {viewingSale.items?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-[var(--text-main)]">{item.productName} (x{item.quantity})</span>
-                      <span className="font-medium text-[var(--text-main)]">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                    <div key={idx} className="flex flex-col text-sm border-b border-[var(--border-color)] pb-2 last:border-0">
+                      <div className="flex justify-between">
+                        <span className="text-[var(--text-main)] font-medium">{item.productName} (x{item.quantity})</span>
+                        <span className="font-bold text-[var(--text-main)]">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      {item.imei && <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">IMEI: {item.imei}</span>}
                     </div>
                   ))}
                 </div>
@@ -506,34 +540,81 @@ export default function Sales() {
                 </div>
 
                 <div className="rounded-xl border border-[var(--border-color)] p-4 space-y-4">
-                  <h3 className="text-sm font-bold text-[var(--text-main)]">Adicionar Produto</h3>
-                  <div>
-                    <label className="text-xs font-medium text-[var(--text-muted)]">Produto</label>
-                    <div className="space-y-2 mt-1">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-[var(--text-main)]">Adicionar Item</h3>
+                    <button 
+                      type="button"
+                      onClick={() => setIsManualEntry(!isManualEntry)}
+                      className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {isManualEntry ? 'Selecionar do Estoque' : 'Venda Avulsa (Usados)'}
+                    </button>
+                  </div>
+
+                  {isManualEntry ? (
+                    <div className="space-y-3 animate-in fade-in duration-300">
+                      <div>
+                        <label className="text-xs font-medium text-[var(--text-muted)]">Modelo / Descrição</label>
                         <input
                           type="text"
-                          placeholder="Filtrar produtos..."
-                          className="input pl-7 h-8 text-xs"
-                          value={productSearchTerm}
-                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          className="input mt-1 h-9 text-sm"
+                          placeholder="Ex: iPhone 11 64GB Usado"
+                          value={manualName}
+                          onChange={(e) => setManualName(e.target.value)}
                         />
                       </div>
-                      <select
-                        className="input"
-                        value={selectedProductId}
-                        onChange={(e) => setSelectedProductId(e.target.value)}
-                      >
-                        <option value="">Selecione um produto</option>
-                        {filteredProductsForSale.map(p => (
-                          <option key={p.id} value={p.id} disabled={p.stock <= 0}>
-                            {p.name} - R$ {p.price.toFixed(2)} ({p.stock} em estoque)
-                          </option>
-                        ))}
-                      </select>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-[var(--text-muted)]">Preço de Venda (R$)</label>
+                          <input
+                            type="number"
+                            className="input mt-1 h-9 text-sm"
+                            value={manualPrice}
+                            onChange={(e) => setManualPrice(parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-[var(--text-muted)]">IMEI / Serial</label>
+                          <input
+                            type="text"
+                            className="input mt-1 h-9 text-sm"
+                            placeholder="Opcional"
+                            value={manualImei}
+                            onChange={(e) => setManualImei(e.target.value)}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div>
+                      <label className="text-xs font-medium text-[var(--text-muted)]">Produto</label>
+                      <div className="space-y-2 mt-1">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--text-muted)]" />
+                          <input
+                            type="text"
+                            placeholder="Filtrar produtos..."
+                            className="input pl-7 h-8 text-xs"
+                            value={productSearchTerm}
+                            onChange={(e) => setProductSearchTerm(e.target.value)}
+                          />
+                        </div>
+                        <select
+                          className="input"
+                          value={selectedProductId}
+                          onChange={(e) => setSelectedProductId(e.target.value)}
+                        >
+                          <option value="">Selecione um produto</option>
+                          {filteredProductsForSale.map(p => (
+                            <option key={p.id} value={p.id} disabled={p.stock <= 0}>
+                              {p.name} {p.imei ? `(IMEI: ${p.imei})` : ''} - R$ {p.price.toFixed(2)} ({p.stock} em estoque)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <div className="flex-1">
                       <label className="text-xs font-medium text-[var(--text-muted)]">Quantidade</label>
@@ -542,14 +623,14 @@ export default function Sales() {
                         min="1"
                         className="input mt-1"
                         value={selectedQuantity}
-                        onChange={(e) => setSelectedQuantity(parseInt(e.target.value))}
+                        onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
                       />
                     </div>
                     <div className="flex items-end">
                       <button
                         type="button"
                         onClick={addItem}
-                        disabled={!selectedProductId}
+                        disabled={!isManualEntry && !selectedProductId}
                         className="btn btn-primary h-10 px-6"
                       >
                         Add
@@ -568,6 +649,7 @@ export default function Sales() {
                         <div key={idx} className="flex items-center justify-between rounded-lg bg-[var(--bg-card)] p-3 shadow-sm border border-[var(--border-color)]">
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-[var(--text-main)]">{item.productName}</p>
+                            {item.imei && <p className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">IMEI: {item.imei}</p>}
                             <p className="text-xs text-[var(--text-muted)]">
                               {item.quantity}x R$ {item.price.toFixed(2)}
                             </p>
@@ -577,7 +659,7 @@ export default function Sales() {
                               R$ {(item.price * item.quantity).toFixed(2)}
                             </span>
                             <button
-                              onClick={() => removeItem(item.productId)}
+                              onClick={() => removeItem(idx)}
                               className="text-red-500 hover:text-red-700 p-1"
                             >
                               <X className="h-4 w-4" />

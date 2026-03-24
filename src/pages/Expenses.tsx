@@ -239,7 +239,7 @@ export default function Expenses() {
                   required
                   className="input mt-1"
                   value={value}
-                  onChange={(e) => setValue(parseFloat(e.target.value))}
+                  onChange={(e) => setValue(parseFloat(e.target.value) || 0)}
                 />
               </div>
 
