@@ -350,18 +350,18 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="card bg-[var(--accent-primary)] text-[var(--accent-foreground)] border-none shadow-lg p-6">
+          <div className="card bg-[var(--accent-primary)] dark:text-black text-white border-none shadow-lg p-6">
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="rounded-full bg-white/20 p-2">
+              <div className="flex items-center gap-3 mb-4 dark:text-black text-white">
+                <div className="rounded-full dark:bg-black/20 bg-white/20 p-2">
                   <Package className="h-5 w-5" />
                 </div>
                 <h3 className="font-semibold">Resumo de Entrega</h3>
               </div>
-              <p className="text-sm opacity-90 mb-6">Você tem <span className="font-bold text-lg">{stats.readyOrders}</span> ordens prontas para entrega aos clientes.</p>
+              <p className="text-sm opacity-90 mb-6">Você tem <span className="font-bold text-lg text-blue-500">{stats.readyOrders}</span> ordens prontas para entrega aos clientes.</p>
               <Link 
                 to="/service-orders" 
-                className="inline-flex items-center gap-2 text-sm font-medium hover:gap-3 transition-all"
+                className="inline-flex items-center gap-2 text-sm font-medium hover:gap-3 transition-all text-blue-500"
               >
                 Ver ordens prontas <ArrowUpRight className="h-4 w-4" />
               </Link>
