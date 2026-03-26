@@ -3,7 +3,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteD
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { DeliveryLocation, DeliveryRun, DeliveryStatus, Motoboy } from '../types';
-import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2, Search, MoreVertical, Eye } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2, Search, MoreVertical, Eye, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
@@ -25,6 +25,16 @@ export default function DeliveryManagement() {
   const [motoboys, setMotoboys] = useState<Motoboy[]>([]);
   const [activeTab, setActiveTab] = useState<'runs' | 'locations' | 'motoboys'>('runs');
   
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingRun, setEditingRun] = useState<DeliveryRun | null>(null);
+  const [editForm, setEditForm] = useState({
+    motoboyId: '',
+    locationId: '',
+    quantity: 1,
+    value: 0,
+    date: '',
+    status: 'pending' as DeliveryRun['status']
+  });
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<DeliveryLocation | null>(null);
   const [newLocationName, setNewLocationName] = useState('');
@@ -33,6 +43,7 @@ export default function DeliveryManagement() {
   const [isMotoboyModalOpen, setIsMotoboyModalOpen] = useState(false);
   const [newMotoboyName, setNewMotoboyName] = useState('');
   const [actionMenuRun, setActionMenuRun] = useState<DeliveryRun | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   
@@ -159,6 +170,60 @@ export default function DeliveryManagement() {
       handleFirestoreError(error, OperationType.UPDATE, `deliveryRuns/${id}`);
     } finally {
       setLoading(prev => ({ ...prev, [`updateRun_${id}_${status}`]: false }));
+    }
+  };
+
+  const handleDeleteRun = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta corrida?')) return;
+    try {
+      await deleteDoc(doc(db, 'deliveryRuns', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'deliveryRuns');
+    }
+  };
+
+  const handleEditRun = (run: DeliveryRun) => {
+    setEditingRun(run);
+    setEditForm({
+      motoboyId: run.motoboyId,
+      locationId: run.locationId,
+      quantity: run.quantity || 1,
+      value: run.value,
+      date: run.date,
+      status: run.status
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateRun = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRun) return;
+
+    try {
+      const motoboy = motoboys.find(m => m.id === editForm.motoboyId);
+      const location = locations.find(l => l.id === editForm.locationId);
+
+      if (!motoboy || !location) {
+        alert('Motoboy ou Local inválido');
+        return;
+      }
+
+      await updateDoc(doc(db, 'deliveryRuns', editingRun.id), {
+        motoboyId: editForm.motoboyId,
+        motoboyName: motoboy.name,
+        locationId: editForm.locationId,
+        locationName: location.name,
+        quantity: editForm.quantity,
+        value: editForm.value,
+        totalValue: editForm.value * editForm.quantity,
+        date: editForm.date,
+        status: editForm.status
+      });
+
+      setIsEditModalOpen(false);
+      setEditingRun(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'deliveryRuns');
     }
   };
 
@@ -323,8 +388,9 @@ export default function DeliveryManagement() {
             </div>
           </div>
 
-          <div className="card overflow-x-auto">
-            <div className="overflow-x-auto">
+          <div className="card overflow-hidden">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-sm min-w-[700px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
@@ -358,59 +424,98 @@ export default function DeliveryManagement() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {/* Desktop Actions */}
-                          <div className="hidden sm:flex justify-end gap-2">
-                            {run.status === 'pending' && (
+                          <div className="flex justify-end relative">
+                            <button
+                              onClick={() => setOpenDropdownId(openDropdownId === run.id ? null : run.id)}
+                              className="p-1.5 text-[var(--text-muted)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            >
+                              <MoreVertical className="h-5 w-5" />
+                            </button>
+
+                            {openDropdownId === run.id && (
                               <>
-                                <button
-                                  onClick={() => handleUpdateRunStatus(run.id, 'approved')}
-                                  disabled={loading[`updateRun_${run.id}_approved`]}
-                                  className="p-1 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-50"
-                                  title="Aprovar"
-                                >
-                                  {loading[`updateRun_${run.id}_approved`] ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateRunStatus(run.id, 'rejected')}
-                                  disabled={loading[`updateRun_${run.id}_rejected`]}
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-                                  title="Rejeitar"
-                                >
-                                  {loading[`updateRun_${run.id}_rejected`] ? <Loader2 className="h-5 w-5 animate-spin" /> : <XCircle className="h-5 w-5" />}
-                                </button>
+                                <div 
+                                  className="fixed inset-0 z-10" 
+                                  onClick={() => setOpenDropdownId(null)}
+                                />
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-xl z-20 py-1 animate-in fade-in zoom-in duration-150">
+                                  <button
+                                    onClick={() => {
+                                      handleEditRun(run);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                    Editar Corrida
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      handleDeleteRun(run.id);
+                                      setOpenDropdownId(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Excluir Corrida
+                                  </button>
+                                  <div className="h-px bg-[var(--border-color)] my-1" />
+                                  
+                                  {run.status === 'pending' && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          handleUpdateRunStatus(run.id, 'approved');
+                                          setOpenDropdownId(null);
+                                        }}
+                                        disabled={loading[`updateRun_${run.id}_approved`]}
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50"
+                                      >
+                                        <CheckCircle className="h-4 w-4" />
+                                        Aprovar Corrida
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          handleUpdateRunStatus(run.id, 'rejected');
+                                          setOpenDropdownId(null);
+                                        }}
+                                        disabled={loading[`updateRun_${run.id}_rejected`]}
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                        Rejeitar Corrida
+                                      </button>
+                                    </>
+                                  )}
+                                  {run.status === 'approved' && (
+                                    <button
+                                      onClick={() => {
+                                        handleUpdateRunStatus(run.id, 'paid');
+                                        setOpenDropdownId(null);
+                                      }}
+                                      disabled={loading[`updateRun_${run.id}_paid`]}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                                    >
+                                      <DollarSign className="h-4 w-4" />
+                                      Marcar como Pago
+                                    </button>
+                                  )}
+                                  {run.status !== 'pending' && (
+                                    <button
+                                      onClick={() => {
+                                        handleUpdateRunStatus(run.id, 'pending');
+                                        setOpenDropdownId(null);
+                                      }}
+                                      disabled={loading[`updateRun_${run.id}_pending`]}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-[var(--text-muted)] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                                    >
+                                      <Clock className="h-4 w-4" />
+                                      Reverter Status
+                                    </button>
+                                  )}
+                                </div>
                               </>
                             )}
-                            {run.status === 'approved' && (
-                              <button
-                                onClick={() => handleUpdateRunStatus(run.id, 'paid')}
-                                disabled={loading[`updateRun_${run.id}_paid`]}
-                                className="p-1 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50 flex items-center gap-1"
-                                title="Marcar como Pago"
-                              >
-                                {loading[`updateRun_${run.id}_paid`] ? <Loader2 className="h-5 w-5 animate-spin" /> : <DollarSign className="h-5 w-5" />}
-                                <span className="text-xs font-bold">Pagar</span>
-                              </button>
-                            )}
-                            {run.status !== 'pending' && (
-                              <button
-                                onClick={() => handleUpdateRunStatus(run.id, 'pending')}
-                                disabled={loading[`updateRun_${run.id}_pending`]}
-                                className="text-xs text-[var(--text-muted)] hover:underline disabled:opacity-50 flex items-center gap-1"
-                              >
-                                {loading[`updateRun_${run.id}_pending`] && <Loader2 className="h-3 w-3 animate-spin" />}
-                                Reverter
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Mobile Actions Button */}
-                          <div className="sm:hidden">
-                            <button
-                              onClick={() => setActionMenuRun(run)}
-                              className="btn btn-secondary h-8 w-8 p-0"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -424,6 +529,60 @@ export default function DeliveryManagement() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card List */}
+            <div className="md:hidden divide-y divide-[var(--border-color)]">
+              {filteredRuns.length > 0 ? (
+                filteredRuns.map(run => (
+                  <div key={run.id} className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-[var(--text-main)]">{run.motoboyName}</p>
+                        <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {run.locationName}
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        run.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                        run.status === 'paid' ? 'bg-blue-100 text-blue-800' :
+                        run.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {run.status === 'approved' ? 'Aprovado' :
+                         run.status === 'paid' ? 'Pago' :
+                         run.status === 'rejected' ? 'Rejeitado' :
+                         'Pendente'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm">
+                        <span className="text-[var(--text-muted)]">Qtd: </span>
+                        <span className="font-medium">{run.quantity || 1}</span>
+                      </div>
+                      <div className="text-sm font-bold text-[var(--text-main)]">
+                        R$ {(run.totalValue || run.value).toFixed(2)}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setActionMenuRun(run)}
+                        className="btn btn-secondary flex-1 h-9 text-xs gap-2"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                        Ações
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-[var(--text-muted)]">
+                  Nenhuma corrida encontrada para este dia.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -526,6 +685,27 @@ export default function DeliveryManagement() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => {
+                  handleEditRun(actionMenuRun);
+                  setActionMenuRun(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-blue-600 dark:text-blue-400 h-auto"
+              >
+                <Edit2 className="h-6 w-6" />
+                <span>Editar</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteRun(actionMenuRun.id);
+                  setActionMenuRun(null);
+                }}
+                className="btn btn-secondary flex-col gap-2 py-4 text-red-600 dark:text-red-400 h-auto"
+              >
+                <Trash2 className="h-6 w-6" />
+                <span>Excluir</span>
+              </button>
+
               {actionMenuRun.status === 'pending' && (
                 <>
                   <button
@@ -575,6 +755,236 @@ export default function DeliveryManagement() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Run Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl p-6 shadow-2xl border border-[var(--border-color)]">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Editar Corrida</h2>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--text-muted)]">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateRun} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Motoboy</label>
+                <select
+                  className="input w-full"
+                  value={editForm.motoboyId}
+                  onChange={(e) => setEditForm({ ...editForm, motoboyId: e.target.value })}
+                  required
+                >
+                  {motoboys.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Local</label>
+                <select
+                  className="input w-full"
+                  value={editForm.locationId}
+                  onChange={(e) => {
+                    const loc = locations.find(l => l.id === e.target.value);
+                    setEditForm({ 
+                      ...editForm, 
+                      locationId: e.target.value,
+                      value: loc ? loc.value : editForm.value
+                    });
+                  }}
+                  required
+                >
+                  {locations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name} (R$ {l.value.toFixed(2)})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[var(--text-muted)]">Quantidade</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input w-full"
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[var(--text-muted)]">Valor Unitário</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input w-full"
+                    value={editForm.value}
+                    onChange={(e) => setEditForm({ ...editForm, value: parseFloat(e.target.value) })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Data</label>
+                <input
+                  type="date"
+                  className="input w-full"
+                  value={editForm.date}
+                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Status</label>
+                <select
+                  className="input w-full"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as DeliveryRun['status'] })}
+                  required
+                >
+                  <option value="pending">Pendente</option>
+                  <option value="approved">Aprovado</option>
+                  <option value="paid">Pago</option>
+                  <option value="rejected">Rejeitado</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="btn btn-secondary flex-1"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary flex-1">
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Run Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl p-6 shadow-2xl border border-[var(--border-color)]">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Editar Corrida</h2>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--text-muted)]">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateRun} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Motoboy</label>
+                <select
+                  className="input w-full"
+                  value={editForm.motoboyId}
+                  onChange={(e) => setEditForm({ ...editForm, motoboyId: e.target.value })}
+                  required
+                >
+                  {motoboys.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Local</label>
+                <select
+                  className="input w-full"
+                  value={editForm.locationId}
+                  onChange={(e) => {
+                    const loc = locations.find(l => l.id === e.target.value);
+                    setEditForm({ 
+                      ...editForm, 
+                      locationId: e.target.value,
+                      value: loc ? loc.value : editForm.value
+                    });
+                  }}
+                  required
+                >
+                  {locations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name} (R$ {l.value.toFixed(2)})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[var(--text-muted)]">Quantidade</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input w-full"
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[var(--text-muted)]">Valor Unitário</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input w-full"
+                    value={editForm.value}
+                    onChange={(e) => setEditForm({ ...editForm, value: parseFloat(e.target.value) })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Data</label>
+                <input
+                  type="date"
+                  className="input w-full"
+                  value={editForm.date}
+                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)]">Status</label>
+                <select
+                  className="input w-full"
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as DeliveryRun['status'] })}
+                  required
+                >
+                  <option value="pending">Pendente</option>
+                  <option value="approved">Aprovado</option>
+                  <option value="paid">Pago</option>
+                  <option value="rejected">Rejeitado</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="btn btn-secondary flex-1"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary flex-1">
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

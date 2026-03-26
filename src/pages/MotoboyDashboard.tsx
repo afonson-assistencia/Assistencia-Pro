@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { useAuth } from '../App';
 import { DeliveryLocation, DeliveryRun, Motoboy } from '../types';
-import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2 } from 'lucide-react';
+import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Navigate } from 'react-router-dom';
@@ -16,6 +16,14 @@ export default function MotoboyDashboard() {
   const [allPendingRuns, setAllPendingRuns] = useState<DeliveryRun[]>([]);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [editingRun, setEditingRun] = useState<DeliveryRun | null>(null);
+  const [editForm, setEditForm] = useState({
+    locationId: '',
+    quantity: 1,
+    value: 0
+  });
   
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [runValue, setRunValue] = useState('0');
@@ -137,6 +145,50 @@ export default function MotoboyDashboard() {
 
   const removeFromTempList = (index: number) => {
     setTempRuns(tempRuns.filter((_, i) => i !== index));
+  };
+
+  const handleEditRun = (run: DeliveryRun) => {
+    setEditingRun(run);
+    setEditForm({
+      locationId: run.locationId,
+      quantity: run.quantity || 1,
+      value: run.value
+    });
+    setIsEditModalOpen(true);
+    setOpenDropdownId(null);
+  };
+
+  const handleUpdateRun = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRun) return;
+
+    try {
+      const location = locations.find(l => l.id === editForm.locationId);
+      if (!location) return;
+
+      await updateDoc(doc(db, 'deliveryRuns', editingRun.id), {
+        locationId: editForm.locationId,
+        locationName: location.name,
+        quantity: editForm.quantity,
+        value: editForm.value,
+        totalValue: editForm.value * editForm.quantity
+      });
+
+      setIsEditModalOpen(false);
+      setEditingRun(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'deliveryRuns');
+    }
+  };
+
+  const handleDeleteRun = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta corrida?')) return;
+    try {
+      await deleteDoc(doc(db, 'deliveryRuns', id));
+      setOpenDropdownId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'deliveryRuns');
+    }
   };
 
   const totalEarned = runs
@@ -264,19 +316,56 @@ export default function MotoboyDashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">R$ {(run.totalValue || run.value).toFixed(2)}</p>
-                  <p className={`text-[10px] uppercase font-bold tracking-tighter ${
-                    run.status === 'approved' ? 'text-emerald-600' :
-                    run.status === 'paid' ? 'text-blue-600' :
-                    run.status === 'rejected' ? 'text-red-600' :
-                    'text-yellow-600'
-                  }`}>
-                    {run.status === 'approved' ? 'Aprovado' :
-                     run.status === 'paid' ? 'Pago' :
-                     run.status === 'rejected' ? 'Rejeitado' :
-                     'Pendente'}
-                  </p>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="font-bold text-lg">R$ {(run.totalValue || run.value).toFixed(2)}</p>
+                    <p className={`text-[10px] uppercase font-bold tracking-tighter ${
+                      run.status === 'approved' ? 'text-emerald-600' :
+                      run.status === 'paid' ? 'text-blue-600' :
+                      run.status === 'rejected' ? 'text-red-600' :
+                      'text-yellow-600'
+                    }`}>
+                      {run.status === 'approved' ? 'Aprovado' :
+                       run.status === 'paid' ? 'Pago' :
+                       run.status === 'rejected' ? 'Rejeitado' :
+                       'Pendente'}
+                    </p>
+                  </div>
+                  {run.status === 'pending' && (
+                    <div className="relative">
+                      <button 
+                        onClick={() => setOpenDropdownId(openDropdownId === run.id ? null : run.id)}
+                        className="p-1 hover:bg-[var(--bg-main)] rounded-full transition-colors"
+                      >
+                        <MoreVertical className="h-5 w-5 text-[var(--text-muted)]" />
+                      </button>
+                      
+                      {openDropdownId === run.id && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setOpenDropdownId(null)}
+                          />
+                          <div className="absolute right-0 mt-2 w-36 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg shadow-xl z-20 py-1 animate-in fade-in zoom-in duration-150">
+                            <button
+                              onClick={() => handleEditRun(run)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRun(run.id)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Excluir
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -439,6 +528,108 @@ export default function MotoboyDashboard() {
                 >
                   {isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />}
                   {isSubmitting ? 'Salvando...' : 'Confirmar Tudo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Edit Run Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[var(--bg-card)] rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl border-t sm:border border-[var(--border-color)]">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Editar Corrida</h2>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--text-muted)]">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateRun} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Local da Entrega
+                </label>
+                <select
+                  className="input w-full text-base"
+                  value={editForm.locationId}
+                  onChange={(e) => {
+                    const locId = e.target.value;
+                    const location = locations.find(l => l.id === locId);
+                    setEditForm({
+                      ...editForm,
+                      locationId: locId,
+                      value: location ? location.value : editForm.value
+                    });
+                  }}
+                  required
+                >
+                  <option value="">Selecione o local...</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name} - R$ {loc.value.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Valor da Corrida (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="input w-full text-lg font-bold"
+                  value={editForm.value}
+                  onChange={(e) => setEditForm({ ...editForm, value: parseFloat(e.target.value) })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Quantidade de Viagens
+                </label>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, quantity: Math.max(1, f.quantity - 1) }))}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-[var(--border-color)] btn btn-primary text-xl font-bold"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input flex-1 text-center text-xl font-bold py-3"
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) })}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(f => ({ ...f, quantity: f.quantity + 1 }))}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-[var(--border-color)] btn btn-primary text-xl font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="btn btn-secondary flex-1 py-4"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary flex-1 py-4 shadow-lg shadow-blue-500/30">
+                  Salvar Alterações
                 </button>
               </div>
             </form>

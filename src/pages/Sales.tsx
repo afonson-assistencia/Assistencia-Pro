@@ -300,7 +300,8 @@ export default function Sales() {
           </div>
         </div>
 
-        <div className="card overflow-x-auto lg:col-span-2">
+        {/* Desktop Table */}
+        <div className="hidden md:block card overflow-hidden lg:col-span-2">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm min-w-[700px]">
               <thead className="bg-[var(--bg-main)] text-xs uppercase text-[var(--text-muted)]">
@@ -373,6 +374,51 @@ export default function Sales() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile Card Layout */}
+        <div className="md:hidden grid gap-4 lg:col-span-2">
+          {filteredSales.length > 0 ? (
+            filteredSales.map((sale) => (
+              <div key={sale.id} className="card p-4 border border-[var(--border-color)]">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-[var(--text-main)]">#{sale.id.slice(-4).toUpperCase()}</h3>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      {sale.date?.toDate ? format(sale.date.toDate(), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : '-'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActionMenuSale(sale)}
+                    className="p-2 text-[var(--text-muted)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[var(--text-main)] font-medium">{sale.customerName || 'Consumidor Final'}</span>
+                    <span className="font-bold text-[var(--text-main)]">R$ {sale.totalValue.toFixed(2)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {sale.items?.slice(0, 2).map((item, idx) => (
+                      <span key={idx} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[var(--text-muted)]">
+                        {item.productName}
+                      </span>
+                    ))}
+                    {sale.items?.length > 2 && (
+                      <span className="text-[10px] text-[var(--text-muted)]">+{sale.items.length - 2} itens</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-12 text-center text-[var(--text-muted)]">
+              {loading ? 'Carregando...' : 'Nenhuma venda registrada.'}
+            </div>
+          )}
         </div>
       </div>
 

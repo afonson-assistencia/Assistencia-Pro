@@ -23,7 +23,6 @@ export default function ServiceOrders() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sendingN8N, setSendingN8N] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // New Customer state
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -323,22 +322,6 @@ Obrigado pela preferência!`;
           <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie os consertos em andamento.</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-1 flex-1 sm:flex-none justify-center">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors flex-1 sm:flex-none flex justify-center ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
-              title="Visualização em Grade"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-md transition-colors flex-1 sm:flex-none flex justify-center ${viewMode === 'table' ? 'bg-slate-100 dark:bg-slate-800 text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
-              title="Visualização em Tabela"
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
           <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn btn-primary gap-2 flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nova O.S.</span>
@@ -377,225 +360,132 @@ Obrigado pela preferência!`;
         </div>
       </div>
 
-      {viewMode === 'grid' ? (
-        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <div key={order.id} className="card p-6 transition-all hover:shadow-md border border-[var(--border-color)]">
-                <div className="mb-4 flex items-start justify-between">
-                  <div>
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status]}`}>
-                      {STATUS_LABELS[order.status]}
-                    </span>
-                    <h3 className="mt-2 text-lg font-bold text-[var(--text-main)]">{order.model}</h3>
-                    <p className="text-sm text-[var(--text-muted)]">{order.customerName}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</p>
-                    <p className="text-xs text-[var(--text-muted)]">#{order.id.slice(-4).toUpperCase()}</p>
-                  </div>
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map((order) => (
+            <div key={order.id} className="card p-6 transition-all hover:shadow-md border border-[var(--border-color)]">
+              <div className="mb-4 flex items-start justify-between">
+                <div>
+                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status]}`}>
+                    {STATUS_LABELS[order.status]}
+                  </span>
+                  <h3 className="mt-2 text-lg font-bold text-[var(--text-main)]">{order.model}</h3>
+                  <p className="text-sm text-[var(--text-muted)]">{order.customerName}</p>
                 </div>
-
-                <div className="mb-6 space-y-2 text-sm">
-                  {order.services?.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[var(--text-muted)]">Serviços:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {order.services.map(s => (
-                          <span key={s} className="rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-1.5 py-0.5 text-[10px] font-bold">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Problema:</span>
-                    <span className="font-medium text-[var(--text-main)]">{order.problem}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Entrada:</span>
-                    <span className="font-medium text-[var(--text-main)]">
-                      {order.entryDate?.toDate ? format(order.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--text-muted)]">Prazo:</span>
-                    <span className="font-medium text-[var(--text-main)]">
-                      {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <div className="relative flex-1">
-                    <select
-                      className="btn btn-secondary w-full text-xs h-8 py-0 appearance-none pr-8 disabled:opacity-50"
-                      value={order.status}
-                      onChange={(e) => updateStatus(order.id, e.target.value as OSStatus)}
-                      disabled={actionLoading[`status_${order.id}`]}
-                    >
-                      {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                        <option key={val} value={val}>{label}</option>
-                      ))}
-                    </select>
-                    {actionLoading[`status_${order.id}`] && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 rounded-md">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEditOrder(order)}
-                      className="btn btn-secondary h-8 w-8 p-0 text-amber-600 dark:text-amber-400"
-                      title="Editar"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setViewingOrder(order)}
-                      className="btn btn-secondary h-8 w-8 p-0 text-slate-600 dark:text-slate-400"
-                      title="Ver Detalhes"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <a
-                      href={generateWhatsAppLink(order)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-secondary h-8 w-8 p-0 text-green-600 dark:text-green-400"
-                      title="Enviar WhatsApp"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </a>
-                    <button
-                      onClick={() => handleManualN8NSend(order)}
-                      disabled={sendingN8N === order.id}
-                      className={`btn btn-secondary h-8 w-8 p-0 text-blue-600 dark:text-blue-400 ${sendingN8N === order.id ? 'opacity-50' : ''}`}
-                      title="Enviar para n8n"
-                    >
-                      <Send className={`h-4 w-4 ${sendingN8N === order.id ? 'animate-pulse' : ''}`} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setTimeout(() => handlePrint(), 100);
-                      }}
-                      className="btn btn-secondary h-8 w-8 p-0 text-[var(--text-muted)]"
-                      title="Imprimir"
-                    >
-                      <Printer className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingOrder(order.id)}
-                      className="btn btn-secondary h-8 w-8 p-0 text-red-600 dark:text-red-400"
-                      title="Excluir"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</p>
+                  <p className="text-xs text-[var(--text-muted)]">#{order.id.slice(-4).toUpperCase()}</p>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="col-span-full py-12 text-center text-[var(--text-muted)]">
-              {loading ? 'Carregando...' : 'Nenhuma ordem de serviço encontrada.'}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm min-w-[800px]">
-              <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
-                <tr>
-                  <th className="px-6 py-3 font-semibold">ID</th>
-                  <th className="px-6 py-3 font-semibold">Cliente</th>
-                  <th className="px-6 py-3 font-semibold">Aparelho</th>
-                  <th className="px-6 py-3 font-semibold">Status</th>
-                  <th className="px-6 py-3 font-semibold">Entrada</th>
-                  <th className="px-6 py-3 font-semibold">Valor</th>
-                  <th className="px-6 py-3 font-semibold text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-color)]">
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs">#{order.id.slice(-4).toUpperCase()}</td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-[var(--text-main)]">{order.customerName}</div>
-                        <div className="text-xs text-[var(--text-muted)]">{order.customerPhone}</div>
-                      </td>
-                      <td className="px-6 py-4 text-[var(--text-main)]">{order.model}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COLORS[order.status]}`}>
-                          {STATUS_LABELS[order.status]}
+
+              <div className="mb-6 space-y-2 text-sm">
+                {order.services?.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[var(--text-muted)]">Serviços:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {order.services.map(s => (
+                        <span key={s} className="rounded bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-1.5 py-0.5 text-[10px] font-bold">
+                          {s}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-[var(--text-muted)]">
-                        {order.entryDate?.toDate ? format(order.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button
-                            onClick={() => handleEditOrder(order)}
-                            className="btn btn-secondary h-7 w-7 p-0 text-amber-600"
-                            title="Editar"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setViewingOrder(order)}
-                            className="btn btn-secondary h-7 w-7 p-0"
-                            title="Ver Detalhes"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
-                          <a
-                            href={generateWhatsAppLink(order)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-secondary h-7 w-7 p-0 text-green-600"
-                            title="WhatsApp"
-                          >
-                            <MessageSquare className="h-3.5 w-3.5" />
-                          </a>
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setTimeout(() => handlePrint(), 100);
-                            }}
-                            className="btn btn-secondary h-7 w-7 p-0"
-                            title="Imprimir"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeletingOrder(order.id)}
-                            className="btn btn-secondary h-7 w-7 p-0 text-red-600"
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-[var(--text-muted)]">
-                      {loading ? 'Carregando...' : 'Nenhuma ordem de serviço encontrada.'}
-                    </td>
-                  </tr>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </tbody>
-            </table>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Problema:</span>
+                  <span className="font-medium text-[var(--text-main)]">{order.problem}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Entrada:</span>
+                  <span className="font-medium text-[var(--text-main)]">
+                    {order.entryDate?.toDate ? format(order.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Prazo:</span>
+                  <span className="font-medium text-[var(--text-main)]">
+                    {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <div className="relative flex-1">
+                  <select
+                    className="btn btn-secondary w-full text-xs h-8 py-0 appearance-none pr-8 disabled:opacity-50"
+                    value={order.status}
+                    onChange={(e) => updateStatus(order.id, e.target.value as OSStatus)}
+                    disabled={actionLoading[`status_${order.id}`]}
+                  >
+                    {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                  {actionLoading[`status_${order.id}`] && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 rounded-md">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleEditOrder(order)}
+                    className="btn btn-secondary h-8 w-8 p-0 text-amber-600 dark:text-amber-400"
+                    title="Editar"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewingOrder(order)}
+                    className="btn btn-secondary h-8 w-8 p-0 text-slate-600 dark:text-slate-400"
+                    title="Ver Detalhes"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <a
+                    href={generateWhatsAppLink(order)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary h-8 w-8 p-0 text-green-600 dark:text-green-400"
+                    title="Enviar WhatsApp"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </a>
+                  <button
+                    onClick={() => handleManualN8NSend(order)}
+                    disabled={sendingN8N === order.id}
+                    className={`btn btn-secondary h-8 w-8 p-0 text-blue-600 dark:text-blue-400 ${sendingN8N === order.id ? 'opacity-50' : ''}`}
+                    title="Enviar para n8n"
+                  >
+                    <Send className={`h-4 w-4 ${sendingN8N === order.id ? 'animate-pulse' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setTimeout(() => handlePrint(), 100);
+                    }}
+                    className="btn btn-secondary h-8 w-8 p-0 text-[var(--text-muted)]"
+                    title="Imprimir"
+                  >
+                    <Printer className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeletingOrder(order.id)}
+                    className="btn btn-secondary h-8 w-8 p-0 text-red-600 dark:text-red-400"
+                    title="Excluir"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="col-span-full py-12 text-center text-[var(--text-muted)]">
+            {loading ? 'Carregando...' : 'Nenhuma ordem de serviço encontrada.'}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Modal Ações Mobile */}
       {actionMenuOrder && (
@@ -956,7 +846,7 @@ Obrigado pela preferência!`;
                       <div key={i} className="flex gap-3 text-sm">
                         <div className="flex flex-col items-center">
                           <div className={`h-2 w-2 rounded-full mt-1.5 ${
-                            h.status === 'completed' ? 'bg-emerald-500' :
+                            h.status === 'ready' ? 'bg-emerald-500' :
                             h.status === 'in-progress' ? 'bg-blue-500' :
                             h.status === 'awaiting-parts' ? 'bg-amber-500' :
                             'bg-slate-400'

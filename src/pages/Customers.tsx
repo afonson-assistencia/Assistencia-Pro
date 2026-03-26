@@ -173,24 +173,25 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-left text-sm min-w-[700px]">
-          <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
-            <tr>
-              <th className="px-6 py-3 font-semibold">Nome</th>
-              <th className="px-6 py-3 font-semibold">Telefone</th>
-              <th className="px-6 py-3 font-semibold text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border-color)]">
-            {filteredCustomers.length > 0 ? (
-              filteredCustomers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-[var(--text-main)]">{customer.name}</td>
-                  <td className="px-6 py-4 text-[var(--text-muted)]">{customer.phone}</td>
+      {/* Desktop Table */}
+      <div className="hidden md:block card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[700px]">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
+              <tr>
+                <th className="px-6 py-3 font-semibold">Nome</th>
+                <th className="px-6 py-3 font-semibold">Telefone</th>
+                <th className="px-6 py-3 font-semibold text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-color)]">
+              {filteredCustomers.length > 0 ? (
+                filteredCustomers.map((customer) => (
+                  <tr key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="px-6 py-4 font-medium text-[var(--text-main)]">{customer.name}</td>
+                    <td className="px-6 py-4 text-[var(--text-muted)]">{customer.phone}</td>
                     <td className="px-6 py-4 text-right">
-                      {/* Desktop Actions */}
-                      <div className="hidden sm:flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2">
                         <a
                           href={`https://wa.me/55${customer.phone.replace(/\D/g, '')}`}
                           target="_blank"
@@ -222,28 +223,52 @@ export default function Customers() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-
-                      {/* Mobile Actions */}
-                      <div className="sm:hidden flex justify-end">
-                        <button
-                          onClick={() => setActionMenuCustomer(customer)}
-                          className="p-2 text-[var(--text-muted)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                        >
-                          <MoreVertical className="h-5 w-5" />
-                        </button>
-                      </div>
                     </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="px-6 py-8 text-center text-[var(--text-muted)]">
+                    {loading ? 'Carregando...' : 'Nenhum cliente encontrado.'}
+                  </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={3} className="px-6 py-8 text-center text-[var(--text-muted)]">
-                  {loading ? 'Carregando...' : 'Nenhum cliente encontrado.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Mobile/Tablet Card Layout */}
+      <div className="md:hidden grid gap-4">
+        {filteredCustomers.length > 0 ? (
+          filteredCustomers.map((customer) => (
+            <div key={customer.id} className="card p-4 border border-[var(--border-color)]">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-bold text-[var(--text-main)]">{customer.name}</h3>
+                  <p className="text-sm text-[var(--text-muted)]">{customer.phone}</p>
+                </div>
+                <button
+                  onClick={() => setActionMenuCustomer(customer)}
+                  className="p-2 text-[var(--text-muted)] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </button>
+              </div>
+              
+              {customer.address && (
+                <div className="pt-2 border-t border-[var(--border-color)] text-xs text-[var(--text-muted)]">
+                  <p>{customer.address}, {customer.number}</p>
+                  <p>{customer.neighborhood} - {customer.city}</p>
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="py-12 text-center text-[var(--text-muted)]">
+            {loading ? 'Carregando...' : 'Nenhum cliente encontrado.'}
+          </div>
+        )}
       </div>
 
       {/* Modal Ações Mobile */}

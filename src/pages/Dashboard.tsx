@@ -3,11 +3,11 @@ import { collection, query, where, onSnapshot, orderBy, limit, Timestamp } from 
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ServiceOrder, Sale, Product, Expense, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { ClipboardList, ShoppingCart, TrendingUp, AlertCircle, CheckCircle2, Clock, Calendar, DollarSign, Receipt, Package } from 'lucide-react';
+import { ClipboardList, ShoppingCart, TrendingUp, AlertCircle, CheckCircle2, Clock, Calendar, DollarSign, Receipt, Package, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { format, startOfDay, startOfWeek, startOfMonth, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -193,168 +193,203 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
-        <p className="text-sm sm:text-base text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
+        <h1 className="text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
+        <p className="text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
       </div>
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
-        <div className="rounded-xl p-4 border border-red-500">
-          <div className="flex items-center gap-3 text-red-500">
-            <AlertCircle className="h-5 w-5" />
-            <h3 className="font-bold">Alerta de Estoque Baixo</h3>
+        <div className="card border-red-500 bg-red-50/50 dark:bg-red-900/10 p-6">
+          <div className="pb-2">
+            <h2 className="flex items-center gap-2 text-red-600 dark:text-red-400 text-lg font-bold">
+              <AlertCircle className="h-5 w-5" />
+              Alerta de Estoque Baixo
+            </h2>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {lowStockProducts.map(p => (
-              <div key={p.id} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium shadow-sm dark:bg-slate-800 text-white border border-[var(--border-color)]">
-                {p.name}: <span className="text-red-500 font-bold">{p.stock} un</span>
-              </div>
-            ))}
+          <div>
+            <div className="flex flex-wrap gap-2">
+              {lowStockProducts.map(p => (
+                <div key={p.id} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium shadow-sm dark:bg-slate-800 text-[var(--text-main)] border border-[var(--border-color)]">
+                  {p.name}: <span className="text-red-500 font-bold">{p.stock} un</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-medium text-[var(--text-muted)]">Faturamento Hoje</p>
-              <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">R$ {stats.todayRevenue.toFixed(2)}</p>
+              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Faturamento Hoje</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.todayRevenue.toFixed(2)}</p>
               <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
                 <span>OS: R$ {stats.todayOSRevenue.toFixed(2)}</span>
                 <span>Vendas: R$ {stats.todaySalesRevenue.toFixed(2)}</span>
               </div>
             </div>
-            <div className="rounded-lg p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600">
+            <div className="rounded-full p-3 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600">
               <TrendingUp className="h-6 w-6" />
             </div>
           </div>
         </div>
-        <StatCard
-          title="Faturamento Mês"
-          value={`R$ ${stats.monthRevenue.toFixed(2)}`}
-          icon={Receipt}
-          color="text-blue-600"
-          bg="bg-blue-50"
-        />
-        <StatCard
-          title="Despesas Mês"
-          value={`R$ ${stats.monthExpenses.toFixed(2)}`}
-          icon={AlertCircle}
-          color="text-red-600"
-          bg="bg-red-50"
-        />
-        <StatCard
-          title="Lucro Mês"
-          value={`R$ ${stats.monthProfit.toFixed(2)}`}
-          icon={DollarSign}
-          color="text-blue-600"
-          bg="bg-blue-50"
-        />
-        <StatCard
-          title="Ordens Ativas"
-          value={stats.activeOrders}
-          icon={Clock}
-          color="text-orange-600"
-          bg="bg-orange-50"
-        />
+
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Faturamento Mês</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthRevenue.toFixed(2)}</p>
+              <p className="mt-1 text-[10px] text-[var(--text-muted)]">Total acumulado</p>
+            </div>
+            <div className="rounded-full p-3 bg-blue-100 dark:bg-blue-900/20 text-blue-600">
+              <Receipt className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Despesas Mês</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthExpenses.toFixed(2)}</p>
+              <p className="mt-1 text-[10px] text-[var(--text-muted)]">Contas pagas</p>
+            </div>
+            <div className="rounded-full p-3 bg-red-100 dark:bg-red-900/20 text-red-600">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Lucro Mês</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthProfit.toFixed(2)}</p>
+              <p className="mt-1 text-[10px] text-[var(--text-muted)]">Líquido</p>
+            </div>
+            <div className="rounded-full p-3 bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600">
+              <DollarSign className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Revenue Chart */}
         <div className="card lg:col-span-2 p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="font-semibold text-[var(--text-main)]">Fluxo de Caixa (Últimos 7 dias)</h3>
-            <div className="flex gap-4 text-xs">
-              <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded-full bg-slate-900 dark:bg-white"></div>
+          <div className="flex flex-row items-center justify-between pb-8">
+            <div>
+              <h2 className="text-lg font-semibold">Fluxo de Caixa</h2>
+              <p className="text-xs text-[var(--text-muted)]">Últimos 7 dias de operação</p>
+            </div>
+            <div className="flex gap-4 text-[10px] font-medium uppercase tracking-wider">
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-[var(--accent-primary)]"></div>
                 <span className="text-[var(--text-muted)]">Receita</span>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded-full bg-red-400"></div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-red-400"></div>
                 <span className="text-[var(--text-muted)]">Despesas</span>
               </div>
             </div>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                  tickFormatter={(value) => `R$ ${value}`}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'var(--bg-main)', opacity: 0.4 }}
-                  contentStyle={{ 
-                    backgroundColor: 'var(--bg-card)',
-                    color: 'var(--text-main)',
-                    borderRadius: '12px', 
-                    border: '1px solid var(--border-color)', 
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
-                  }}
-                  itemStyle={{ color: 'var(--text-main)' }}
-                  formatter={(value: number) => [`R$ ${value.toFixed(2)}`]}
-                />
-                <Bar dataKey="revenue" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} name="Receita" />
-                <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Despesas" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    tickFormatter={(value) => `R$ ${value}`}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'var(--bg-main)', opacity: 0.4 }}
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-main)',
+                      borderRadius: '8px', 
+                      border: '1px solid var(--border-color)', 
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      fontSize: '12px'
+                    }}
+                    itemStyle={{ color: 'var(--text-main)', padding: '2px 0' }}
+                    formatter={(value: number) => [`R$ ${value.toFixed(2)}`]}
+                  />
+                  <Bar dataKey="revenue" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} name="Receita" barSize={32} />
+                  <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Despesas" barSize={32} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions & Summary */}
         <div className="space-y-6">
           <div className="card p-6">
-            <h3 className="mb-4 font-semibold text-[var(--text-main)]">Ações Rápidas</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <QuickActionLink to="/service-orders" label="Nova O.S." icon={ClipboardList} />
-              <QuickActionLink to="/sales" label="Nova Venda" icon={ShoppingCart} />
-              <QuickActionLink to="/shopping-list" label="Lista Compras" icon={ShoppingCart} />
-              <QuickActionLink to="/inventory" label="Ver Estoque" icon={Package} />
+            <div className="pb-4">
+              <h2 className="text-lg font-semibold">Ações Rápidas</h2>
+            </div>
+            <div>
+              <div className="grid grid-cols-2 gap-3">
+                <QuickActionLink to="/service-orders" label="Nova O.S." icon={ClipboardList} />
+                <QuickActionLink to="/sales" label="Nova Venda" icon={ShoppingCart} />
+                <QuickActionLink to="/shopping-list" label="Lista Compras" icon={ShoppingCart} />
+                <QuickActionLink to="/inventory" label="Ver Estoque" icon={Package} />
+              </div>
             </div>
           </div>
           
-            <div className="card p-6 bg-[var(--text-main)] text-[var(--bg-card)] border-none">
-              <h3 className="mb-2 font-semibold">Resumo de Entrega</h3>
-              <p className="text-sm opacity-70 mb-4">Você tem {stats.readyOrders} ordens prontas para entrega.</p>
-              <Link to="/service-orders" className="text-sm font-medium underline underline-offset-4">
-                Ver ordens prontas →
+          <div className="card bg-[var(--accent-primary)] text-[var(--accent-foreground)] border-none shadow-lg p-6">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-full bg-white/20 p-2">
+                  <Package className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold">Resumo de Entrega</h3>
+              </div>
+              <p className="text-sm opacity-90 mb-6">Você tem <span className="font-bold text-lg">{stats.readyOrders}</span> ordens prontas para entrega aos clientes.</p>
+              <Link 
+                to="/service-orders" 
+                className="inline-flex items-center gap-2 text-sm font-medium hover:gap-3 transition-all"
+              >
+                Ver ordens prontas <ArrowUpRight className="h-4 w-4" />
               </Link>
             </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-1">
-        {/* Recent Orders */}
-        <div className="card overflow-hidden">
-          <div className="border-b border-[var(--border-color)] bg-[var(--bg-main)] px-6 py-4 flex justify-between items-center">
-            <h3 className="font-semibold text-[var(--text-main)]">Últimas Ordens de Serviço</h3>
-            <Link to="/service-orders" className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)]">Ver todas</Link>
-          </div>
+      {/* Recent Orders */}
+      <div className="card">
+        <div className="flex flex-row items-center justify-between border-b border-[var(--border-color)] p-6">
+          <h2 className="text-lg font-semibold">Últimas Ordens de Serviço</h2>
+          <Link to="/service-orders" className="text-xs font-medium text-blue-600 hover:underline">Ver todas</Link>
+        </div>
+        <div className="p-0">
           <div className="divide-y divide-[var(--border-color)]">
             {recentOrders.length > 0 ? (
               recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-main)]">
-                  <div>
-                    <p className="font-medium text-[var(--text-main)]">{order.customerName}</p>
-                    <p className="text-sm text-[var(--text-muted)]">{order.model} - {order.problem}</p>
+                <div key={order.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-main)] transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-[var(--text-main)] truncate">{order.customerName}</p>
+                    <p className="text-xs text-[var(--text-muted)] truncate">{order.model} • {order.problem}</p>
                   </div>
-                  <div className="text-right">
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status]}`}>
+                  <div className="ml-4 flex flex-col items-end gap-1.5">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_COLORS[order.status]}`}>
                       {STATUS_LABELS[order.status]}
                     </span>
-                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    <p className="text-[10px] text-[var(--text-muted)]">
                       {order.createdAt?.toDate ? format(order.createdAt.toDate(), 'dd/MM HH:mm', { locale: ptBR }) : ''}
                     </p>
                   </div>
