@@ -468,7 +468,11 @@ Obrigado pela preferência!`;
                   <button
                     onClick={() => {
                       setSelectedOrder(order);
-                      setTimeout(() => handlePrint(), 100);
+                      setTimeout(() => {
+                        if (printRef.current) {
+                          handlePrint();
+                        }
+                      }, 300);
                     }}
                     className="btn btn-secondary h-8 w-8 p-0 text-[var(--text-muted)]"
                     title="Imprimir"
@@ -537,8 +541,12 @@ Obrigado pela preferência!`;
               <button
                 onClick={() => {
                   setSelectedOrder(actionMenuOrder);
-                  setTimeout(() => handlePrint(), 100);
-                  setActionMenuOrder(null);
+                  setTimeout(() => {
+                    if (printRef.current) {
+                      handlePrint();
+                    }
+                    setActionMenuOrder(null);
+                  }, 300);
                 }}
                 className="btn btn-secondary flex-col gap-2 py-4 text-slate-600 dark:text-slate-400 h-auto"
               >
@@ -886,8 +894,10 @@ Obrigado pela preferência!`;
       )}
 
       {/* Componente Oculto para Impressão */}
-      <div className="hidden">
-        <PrintOS ref={printRef} order={selectedOrder} />
+      <div style={{ display: 'none' }}>
+        <div style={{ display: 'block' }}>
+          <PrintOS ref={printRef} order={selectedOrder} key={selectedOrder?.id} />
+        </div>
       </div>
     </div>
   );
@@ -899,11 +909,11 @@ const PrintOS = React.forwardRef<HTMLDivElement, { order: ServiceOrder | null }>
   if (!order) return null;
 
   return (
-    <div ref={ref} className="p-12 text-slate-900 font-sans">
-      <div className="mb-8 flex justify-between border-b-2 border-slate-900 pb-4">
+    <div ref={ref} className="p-8 text-slate-900 font-sans max-w-[800px] mx-auto bg-white">
+      <div className="mb-6 flex justify-between border-b-2 border-slate-900 pb-4">
         <div>
-          <h1 className="text-2xl font-bold uppercase">Assistência Pro</h1>
-          <p className="text-sm">Consertos e Acessórios</p>
+          <h1 className="text-2xl font-black uppercase tracking-tighter">ASSISTÊNCIA PRO</h1>
+          <p className="text-sm font-bold">Consertos e Acessórios</p>
         </div>
         <div className="text-right">
           <p className="text-lg font-bold">O.S. #{order.id.slice(-6).toUpperCase()}</p>
@@ -911,70 +921,74 @@ const PrintOS = React.forwardRef<HTMLDivElement, { order: ServiceOrder | null }>
         </div>
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-8">
+      <div className="mb-6 grid grid-cols-2 gap-8">
         <div>
-          <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Cliente</h3>
-          <p className="text-lg font-semibold">{order.customerName}</p>
-          <p>{order.customerPhone}</p>
+          <h3 className="mb-1 font-black text-xs uppercase text-slate-500">CLIENTE</h3>
+          <p className="text-lg font-bold">{order.customerName}</p>
+          <p className="text-sm">{order.customerPhone}</p>
         </div>
         <div>
-          <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Aparelho</h3>
-          <p className="text-lg font-semibold">{order.model}</p>
-          <p>Status: {STATUS_LABELS[order.status]}</p>
+          <h3 className="mb-1 font-black text-xs uppercase text-slate-500">APARELHO</h3>
+          <p className="text-lg font-bold">{order.model}</p>
+          <p className="text-sm font-semibold">Status: {STATUS_LABELS[order.status]}</p>
         </div>
       </div>
 
-      <div className="mb-8">
-        <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Serviços e Problema</h3>
-        <div className="rounded-lg border border-slate-200 p-4 bg-slate-50 space-y-4">
+      <div className="mb-6">
+        <h3 className="mb-2 font-black text-xs uppercase text-slate-500">SERVIÇOS E PROBLEMA</h3>
+        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50 space-y-4">
           {order.services?.length > 0 && (
             <div>
-              <p className="text-xs font-bold uppercase text-[var(--text-muted)] opacity-70 mb-1">Serviços Solicitados:</p>
-              <p className="font-semibold">{order.services.join(', ')}</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 mb-1">SERVIÇOS SOLICITADOS:</p>
+              <p className="font-bold text-sm">{order.services.join(', ')}</p>
             </div>
           )}
           <div>
-            <p className="text-xs font-bold uppercase text-[var(--text-muted)] opacity-70 mb-1">Problema Relatado:</p>
-            <p>{order.problem}</p>
+            <p className="text-[10px] font-black uppercase text-slate-400 mb-1">PROBLEMA RELATADO:</p>
+            <p className="text-sm">{order.problem}</p>
           </div>
         </div>
       </div>
 
       <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-lg border border-slate-200 p-4">
-          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Valor Total</p>
-          <p className="text-xl font-bold">R$ {order.totalValue?.toFixed(2)}</p>
+        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50">
+          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">VALOR TOTAL</p>
+          <p className="text-xl font-black">R$ {order.totalValue?.toFixed(2)}</p>
         </div>
-        <div className="rounded-lg border border-slate-200 p-4">
-          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Prazo</p>
-          <p className="text-xl font-bold">
+        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50">
+          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">PRAZO</p>
+          <p className="text-xl font-black">
             {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : '-'}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 p-4">
-          <p className="text-xs font-bold uppercase text-[var(--text-muted)]">Garantia</p>
-          <p className="text-xl font-bold">{order.warrantyDays} dias</p>
+        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50">
+          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">GARANTIA</p>
+          <p className="text-xl font-black">{order.warrantyDays} dias</p>
         </div>
       </div>
 
       {order.notes && (
         <div className="mb-8">
-          <h3 className="mb-2 font-bold uppercase text-[var(--text-muted)]">Observações</h3>
+          <h3 className="mb-1 font-black text-xs uppercase text-slate-500">OBSERVAÇÕES</h3>
           <p className="text-sm italic text-slate-600">{order.notes}</p>
         </div>
       )}
 
-      <div className="mt-24 flex justify-between gap-12">
-        <div className="flex-1 border-t border-slate-900 pt-2 text-center text-xs">
-          Assinatura do Cliente
+      <div className="mt-12 flex justify-between gap-12 border-t border-slate-100 pt-8">
+        <div className="text-center">
+          <p className="text-xs font-black uppercase text-slate-400 mb-1">Assinatura do Cliente</p>
+          <p className="text-[10px] font-bold text-slate-300 italic">Assinado Digitalmente</p>
         </div>
-        <div className="flex-1 border-t border-slate-900 pt-2 text-center text-xs">
-          Assinatura do Técnico
+        <div className="text-center">
+          <p className="text-xs font-black uppercase text-slate-400 mb-1">Assinatura do Técnico</p>
+          <p className="text-[10px] font-bold text-slate-300 italic">Assinado Digitalmente</p>
         </div>
       </div>
 
-      <div className="mt-12 text-center text-[10px] text-[var(--text-muted)] opacity-50">
-        Este documento é um comprovante de entrada de serviço. Guarde-o para a retirada do aparelho.
+      <div className="mt-12 pt-8 border-t border-slate-100 text-center">
+        <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+          Este documento é um comprovante de entrada de serviço. Guarde-o para a retirada do aparelho.
+        </p>
       </div>
     </div>
   );

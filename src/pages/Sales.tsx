@@ -168,7 +168,7 @@ export default function Sales() {
         discount,
         customerId: customerId || null,
         customerName: customer?.name || 'Consumidor Final',
-        date: serverTimestamp(),
+        date: Timestamp.fromDate(new Date(filterDate + 'T12:00:00')),
         createdAt: serverTimestamp(),
       });
 
