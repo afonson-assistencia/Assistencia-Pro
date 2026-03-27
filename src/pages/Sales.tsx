@@ -245,7 +245,7 @@ export default function Sales() {
             <Calendar className="h-4 w-4 text-[var(--text-muted)]" />
             <input
               type="date"
-              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full"
+              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full dark:text-white [color-scheme:dark]"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />

@@ -106,7 +106,7 @@ export default function MotoboyLogin() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-950 transition-colors duration-300">
       {/* Left Side - Image */}
       <div className="hidden md:block md:w-1/2 lg:w-3/5 relative overflow-hidden">
         <img 
@@ -130,11 +130,11 @@ export default function MotoboyLogin() {
             <div className="inline-flex items-center justify-center p-3 sm:p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/20 mb-4 sm:mb-6">
               <Bike className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Área do Motoboy</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Área do Motoboy</h1>
             <p className="text-sm sm:text-lg text-white mt-2 sm:mt-3">Bem-vindo de volta! Digite seu nome para entrar.</p>
           </div>
 
-          <div className=" p-6 sm:p-10">
+          <div>
             {error && (
               <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl flex flex-col gap-3 text-red-600 dark:text-red-400">
                 <div className="flex items-center gap-3 text-sm font-semibold">
@@ -164,7 +164,7 @@ export default function MotoboyLogin() {
                   <input
                     type="text"
                     required
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-xl font-medium"
+                    className="w-full pl-14 pr-6 py-3 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-xl font-medium"
                     placeholder="Ex: Ronald Silva"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -175,7 +175,7 @@ export default function MotoboyLogin() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
               >
                 {loading ? (
                   <Loader2 className="h-7 w-7 animate-spin" />

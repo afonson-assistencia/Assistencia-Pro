@@ -136,7 +136,7 @@ export default function CashClosure() {
             <Calendar className="h-4 w-4 text-[var(--text-muted)]" />
             <input
               type="date"
-              className="border-none bg-transparent p-0 text-sm font-medium focus:ring-0 text-[var(--text-main)] w-full sm:w-auto"
+              className="border-none bg-transparent p-0 text-sm font-medium focus:ring-0 text-[var(--text-main)] w-full sm:w-auto dark:text-white [color-scheme:dark]"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />

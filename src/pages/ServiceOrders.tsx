@@ -102,6 +102,10 @@ export default function ServiceOrders() {
         currentCustomerId = customerRef.id;
         currentCustomerName = newCustomerName;
         currentCustomerPhone = newCustomerPhone;
+      } else if (customerId === 'consumidor-final') {
+        currentCustomerId = 'consumidor-final';
+        currentCustomerName = 'Consumidor Final';
+        currentCustomerPhone = '00000000000';
       } else {
         const customer = customers.find(c => c.id === customerId);
         if (!customer) {
@@ -343,20 +347,22 @@ Obrigado pela preferência!`;
             />
           </div>
         </div>
-        <div className="w-full sm:w-64 input">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-[var(--text-muted)]" />
-            <select
-              className="input border-none bg-transparent p-0 focus:ring-0 text-[var(--text-main)] w-full"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-            >
-              <option value="all">Todos os Status</option>
-              {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
-              ))}
-            </select>
-          </div>
+        <div className={`w-full sm:w-64 input flex items-center gap-2 transition-all ${
+          statusFilter !== 'all' 
+            ? `${STATUS_COLORS[statusFilter as OSStatus]} ring-2 ring-opacity-20 ring-blue-500` 
+            : ''
+        }`}>
+          <Filter className={`h-4 w-4 ${statusFilter !== 'all' ? 'text-inherit' : 'text-[var(--text-muted)]'}`} />
+          <select
+            className="bg-transparent border-none p-0 focus:ring-0 text-inherit w-full text-sm font-medium cursor-pointer"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+          >
+            <option value="all" className="bg-[var(--bg-card)] text-[var(--text-main)]">Todos os Status</option>
+            {Object.entries(STATUS_LABELS).map(([val, label]) => (
+              <option key={val} value={val} className="bg-[var(--bg-card)] text-[var(--text-main)]">{label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -649,6 +655,7 @@ Obrigado pela preferência!`;
                     onChange={(e) => setCustomerId(e.target.value)}
                   >
                     <option value="">Selecione um cliente</option>
+                    <option value="consumidor-final" className="font-bold text-blue-600">Consumidor Final (Não cadastrado)</option>
                     {customers.map(c => (
                       <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>
                     ))}

@@ -154,9 +154,9 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col lg:pl-64">
+      <div className="flex flex-1 flex-col lg:pl-64 min-w-0">
         {/* Mobile Header */}
-        <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 lg:hidden sticky top-0 z-40">
+        <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 lg:hidden sticky top-0 z-40 w-full">
           <div className="flex items-center gap-2">
             {settings.logoUrl ? (
               <img src={settings.logoUrl} alt="Logo" className="h-6 w-6 object-contain" />
@@ -178,7 +178,7 @@ export default function Layout() {
 
         {/* Custom Mobile Menu Overlay */}
         {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-[100] md:hidden">
+          <div className="fixed inset-0 z-[100] lg:hidden">
             {/* Backdrop */}
             <div 
               className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
@@ -186,7 +186,7 @@ export default function Layout() {
             />
             
             {/* Menu Content */}
-            <div className="absolute inset-y-0 left-0 w-72 bg-card border-r border-border flex flex-col animate-in slide-in-from-left duration-300">
+            <div className="absolute inset-y-0 right-0 w-72 bg-card border-l border-border flex flex-col animate-in slide-in-from-right duration-300">
               <div className="h-16 border-b border-border px-6 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {settings.logoUrl ? (
@@ -214,7 +214,7 @@ export default function Layout() {
                         className={cn(
                           'flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors',
                           isActive
-                            ? 'bg-primary text-primary-foreground'
+                            ? 'bg-primary dark:text-black text-white'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                         )}
                       >

@@ -191,7 +191,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 w-full overflow-x-hidden">
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
         <p className="text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
@@ -199,7 +199,7 @@ export default function Dashboard() {
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
-        <div className="card border-red-500 bg-red-50/50 dark:bg-red-900/10 p-6">
+        <div className="card border-red-500 bg-red-50/50 dark:bg-red-900/10 p-4 sm:p-6">
           <div className="pb-2">
             <h2 className="flex items-center gap-2 text-red-600 dark:text-red-400 text-lg font-bold">
               <AlertCircle className="h-5 w-5" />
@@ -219,58 +219,58 @@ export default function Dashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card p-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="card p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Faturamento Hoje</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.todayRevenue.toFixed(2)}</p>
-              <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[var(--text-muted)]">
+              <p className="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Faturamento Hoje</p>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">R$ {stats.todayRevenue.toFixed(2)}</p>
+              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[9px] sm:text-[10px] text-[var(--text-muted)]">
                 <span>OS: R$ {stats.todayOSRevenue.toFixed(2)}</span>
                 <span>Vendas: R$ {stats.todaySalesRevenue.toFixed(2)}</span>
               </div>
             </div>
-            <div className="rounded-full p-3 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600">
-              <TrendingUp className="h-6 w-6" />
+            <div className="rounded-full p-2 sm:p-3 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
           </div>
         </div>
 
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Faturamento Mês</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthRevenue.toFixed(2)}</p>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)]">Total acumulado</p>
+              <p className="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Faturamento Mês</p>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthRevenue.toFixed(2)}</p>
+              <p className="mt-1 text-[9px] sm:text-[10px] text-[var(--text-muted)]">Total acumulado</p>
             </div>
-            <div className="rounded-full p-3 bg-blue-100 dark:bg-blue-900/20 text-blue-600">
-              <Receipt className="h-6 w-6" />
+            <div className="rounded-full p-2 sm:p-3 bg-blue-100 dark:bg-blue-900/20 text-blue-600">
+              <Receipt className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
           </div>
         </div>
 
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Despesas Mês</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthExpenses.toFixed(2)}</p>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)]">Contas pagas</p>
+              <p className="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Despesas Mês</p>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthExpenses.toFixed(2)}</p>
+              <p className="mt-1 text-[9px] sm:text-[10px] text-[var(--text-muted)]">Contas pagas</p>
             </div>
-            <div className="rounded-full p-3 bg-red-100 dark:bg-red-900/20 text-red-600">
-              <AlertCircle className="h-6 w-6" />
+            <div className="rounded-full p-2 sm:p-3 bg-red-100 dark:bg-red-900/20 text-red-600">
+              <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
           </div>
         </div>
 
-        <div className="card p-6">
+        <div className="card p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Lucro Mês</p>
-              <p className="mt-1 text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthProfit.toFixed(2)}</p>
-              <p className="mt-1 text-[10px] text-[var(--text-muted)]">Líquido</p>
+              <p className="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Lucro Mês</p>
+              <p className="mt-1 text-xl sm:text-2xl font-bold text-[var(--text-main)]">R$ {stats.monthProfit.toFixed(2)}</p>
+              <p className="mt-1 text-[9px] sm:text-[10px] text-[var(--text-muted)]">Líquido</p>
             </div>
-            <div className="rounded-full p-3 bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600">
-              <DollarSign className="h-6 w-6" />
+            <div className="rounded-full p-2 sm:p-3 bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600">
+              <DollarSign className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
           </div>
         </div>
@@ -278,7 +278,7 @@ export default function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Revenue Chart */}
-        <div className="card lg:col-span-2 p-6">
+        <div className="card lg:col-span-2 p-4 sm:p-6">
           <div className="flex flex-row items-center justify-between pb-8">
             <div>
               <h2 className="text-lg font-semibold">Fluxo de Caixa</h2>
@@ -326,8 +326,8 @@ export default function Dashboard() {
                     itemStyle={{ color: 'var(--text-main)', padding: '2px 0' }}
                     formatter={(value: number) => [`R$ ${value.toFixed(2)}`]}
                   />
-                  <Bar dataKey="revenue" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} name="Receita" barSize={32} />
-                  <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Despesas" barSize={32} />
+                  <Bar dataKey="revenue" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} name="Receita" />
+                  <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Despesas" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -336,7 +336,7 @@ export default function Dashboard() {
 
         {/* Quick Actions & Summary */}
         <div className="space-y-6">
-          <div className="card p-6">
+          <div className="card p-4 sm:p-6">
             <div className="pb-4">
               <h2 className="text-lg font-semibold">Ações Rápidas</h2>
             </div>
@@ -350,7 +350,7 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="card bg-[var(--accent-primary)] dark:text-black text-white border-none shadow-lg p-6">
+          <div className="card bg-[var(--accent-primary)] dark:text-black text-white border-none shadow-lg p-4 sm:p-6">
             <div>
               <div className="flex items-center gap-3 mb-4 dark:text-black text-white">
                 <div className="rounded-full dark:bg-black/20 bg-white/20 p-2">
@@ -372,7 +372,7 @@ export default function Dashboard() {
 
       {/* Recent Orders */}
       <div className="card">
-        <div className="flex flex-row items-center justify-between border-b border-[var(--border-color)] p-6">
+        <div className="flex flex-row items-center justify-between border-b border-[var(--border-color)] p-4 sm:p-6">
           <h2 className="text-lg font-semibold">Últimas Ordens de Serviço</h2>
           <Link to="/service-orders" className="text-xs font-medium text-blue-600 hover:underline">Ver todas</Link>
         </div>

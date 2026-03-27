@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { useAuth } from '../App';
 import { DeliveryLocation, DeliveryRun, Motoboy } from '../types';
-import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2, Edit2, Trash2, MoreVertical } from 'lucide-react';
-import { format } from 'date-fns';
+import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2, Edit2, Trash2, MoreVertical, History } from 'lucide-react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Navigate } from 'react-router-dom';
 
@@ -30,6 +30,10 @@ export default function MotoboyDashboard() {
   const [quantity, setQuantity] = useState('1');
   const [tempRuns, setTempRuns] = useState<{locationId: string, locationName: string, value: number, quantity: number}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyMonth, setHistoryMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [historyRuns, setHistoryRuns] = useState<DeliveryRun[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   if (!user || profile?.role !== 'motoboy') {
     return <Navigate to="/motoboy-login" />;
@@ -201,6 +205,42 @@ export default function MotoboyDashboard() {
 
   const pendingCount = runs.filter(r => r.status === 'pending').length;
 
+  const fetchHistory = () => {
+    if (!profile.motoboyId) return;
+    setLoadingHistory(true);
+    
+    // Create date range for the selected month
+    const monthDate = new Date(historyMonth + '-02'); // -02 to avoid timezone issues with -01
+    const start = format(startOfMonth(monthDate), 'yyyy-MM-dd');
+    const end = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+
+    const qHistory = query(
+      collection(db, 'deliveryRuns'),
+      where('motoboyId', '==', profile.motoboyId),
+      where('date', '>=', start),
+      where('date', '<=', end),
+      orderBy('date', 'desc'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(qHistory, (snap) => {
+      setHistoryRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
+      setLoadingHistory(false);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'deliveryRuns/history');
+      setLoadingHistory(false);
+    });
+
+    return unsubscribe;
+  };
+
+  useEffect(() => {
+    if (showHistory) {
+      const unsub = fetchHistory();
+      return () => unsub && unsub();
+    }
+  }, [showHistory, profile.motoboyId, historyMonth]);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       {/* Header */}
@@ -254,7 +294,7 @@ export default function MotoboyDashboard() {
           </label>
           <input
             type="date"
-            className="input w-full text-sm sm:text-base"
+            className="input w-full text-sm sm:text-base dark:text-white [color-scheme:dark]"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
@@ -278,22 +318,111 @@ export default function MotoboyDashboard() {
       {/* Runs List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-500" />
-            Minhas Corridas
-          </h2>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="btn btn-primary py-2 px-4 flex items-center gap-2 shadow-lg shadow-blue-500/20"
-          >
-            <Plus className="h-4 w-4" />
-            Lançar Corrida
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowHistory(false)}
+              className={`text-lg font-bold flex items-center gap-2 pb-1 border-b-2 transition-colors ${!showHistory ? 'border-blue-500 text-[var(--text-main)]' : 'border-transparent text-[var(--text-muted)]'}`}
+            >
+              <Clock className="h-5 w-5" />
+              Hoje
+            </button>
+            <button
+              onClick={() => setShowHistory(true)}
+              className={`text-lg font-bold flex items-center gap-2 pb-1 border-b-2 transition-colors ${showHistory ? 'border-blue-500 text-[var(--text-main)]' : 'border-transparent text-[var(--text-muted)]'}`}
+            >
+              <History className="h-5 w-5" />
+              Histórico
+            </button>
+          </div>
+          {!showHistory && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="btn btn-primary py-2 px-4 flex items-center gap-2 shadow-lg shadow-blue-500/20"
+            >
+              <Plus className="h-4 w-4" />
+              Lançar
+            </button>
+          )}
         </div>
 
         <div className="space-y-3">
-          {runs.length > 0 ? (
-            runs.map(run => (
+          {showHistory ? (
+            <>
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] mb-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-blue-500" />
+                  <input
+                    type="month"
+                    className="input py-1 px-2 text-sm font-bold dark:text-white [color-scheme:dark]"
+                    value={historyMonth}
+                    onChange={(e) => setHistoryMonth(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-4 text-sm">
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Total Mês</p>
+                    <p className="font-bold text-lg">R$ {historyRuns.reduce((acc, r) => acc + (r.totalValue || (r.value * r.quantity)), 0).toFixed(2)}</p>
+                  </div>
+                  <div className="text-center border-l border-[var(--border-color)] pl-4">
+                    <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold">Pagos</p>
+                    <p className="font-bold text-lg text-blue-600">R$ {historyRuns.filter(r => r.status === 'paid').reduce((acc, r) => acc + (r.totalValue || (r.value * r.quantity)), 0).toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {loadingHistory ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                </div>
+              ) : historyRuns.length > 0 ? (
+                historyRuns.map(run => (
+                  <div key={run.id} className="card p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${
+                        run.status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
+                        run.status === 'paid' ? 'bg-blue-100 text-blue-600' :
+                        run.status === 'rejected' ? 'bg-red-100 text-red-600' :
+                        'bg-yellow-100 text-yellow-600'
+                      }`}>
+                        {run.status === 'approved' ? <CheckCircle className="h-5 w-5" /> : 
+                         run.status === 'paid' ? <DollarSign className="h-5 w-5" /> :
+                         run.status === 'rejected' ? <XCircle className="h-5 w-5" /> :
+                         <Clock className="h-5 w-5" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-[var(--text-main)]">{run.locationName}</p>
+                        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                          <span>{run.date}</span>
+                          <span>•</span>
+                          <span>{run.quantity || 1}x R$ {run.value.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg">R$ {(run.totalValue || run.value).toFixed(2)}</p>
+                      <p className={`text-[10px] uppercase font-bold tracking-tighter ${
+                        run.status === 'approved' ? 'text-emerald-600' : 
+                        run.status === 'paid' ? 'text-blue-600' :
+                        run.status === 'rejected' ? 'text-red-600' :
+                        'text-yellow-600'
+                      }`}>
+                        {run.status === 'approved' ? 'Aprovado' : 
+                         run.status === 'paid' ? 'Pago' :
+                         run.status === 'rejected' ? 'Rejeitado' :
+                         'Pendente'}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="card p-12 text-center">
+                  <p className="text-[var(--text-muted)]">Nenhuma corrida no histórico para este mês.</p>
+                </div>
+              )}
+            </>
+          ) : (
+            runs.length > 0 ? (
+              runs.map(run => (
               <div key={run.id} className="card p-4 flex items-center justify-between hover:border-blue-200 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`p-2 rounded-lg ${
@@ -376,7 +505,7 @@ export default function MotoboyDashboard() {
               </div>
               <p className="text-[var(--text-muted)]">Nenhuma corrida lançada para este dia.</p>
             </div>
-          )}
+          ))}
         </div>
       </div>
 

@@ -330,7 +330,7 @@ export default function DeliveryManagement() {
               </div>
               <input
                 type="date"
-                className="input text-sm"
+                className="input text-sm dark:text-white [color-scheme:dark]"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
               />
@@ -835,122 +835,7 @@ export default function DeliveryManagement() {
                 <label className="text-sm font-semibold text-[var(--text-muted)]">Data</label>
                 <input
                   type="date"
-                  className="input w-full"
-                  value={editForm.date}
-                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-[var(--text-muted)]">Status</label>
-                <select
-                  className="input w-full"
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as DeliveryRun['status'] })}
-                  required
-                >
-                  <option value="pending">Pendente</option>
-                  <option value="approved">Aprovado</option>
-                  <option value="paid">Pago</option>
-                  <option value="rejected">Rejeitado</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="btn btn-secondary flex-1"
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  Salvar Alterações
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Run Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl p-6 shadow-2xl border border-[var(--border-color)]">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Editar Corrida</h2>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--text-muted)]">
-                <XCircle className="h-6 w-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateRun} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-[var(--text-muted)]">Motoboy</label>
-                <select
-                  className="input w-full"
-                  value={editForm.motoboyId}
-                  onChange={(e) => setEditForm({ ...editForm, motoboyId: e.target.value })}
-                  required
-                >
-                  {motoboys.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-[var(--text-muted)]">Local</label>
-                <select
-                  className="input w-full"
-                  value={editForm.locationId}
-                  onChange={(e) => {
-                    const loc = locations.find(l => l.id === e.target.value);
-                    setEditForm({ 
-                      ...editForm, 
-                      locationId: e.target.value,
-                      value: loc ? loc.value : editForm.value
-                    });
-                  }}
-                  required
-                >
-                  {locations.map(l => (
-                    <option key={l.id} value={l.id}>{l.name} (R$ {l.value.toFixed(2)})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[var(--text-muted)]">Quantidade</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="input w-full"
-                    value={editForm.quantity}
-                    onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[var(--text-muted)]">Valor Unitário</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input w-full"
-                    value={editForm.value}
-                    onChange={(e) => setEditForm({ ...editForm, value: parseFloat(e.target.value) })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-[var(--text-muted)]">Data</label>
-                <input
-                  type="date"
-                  className="input w-full"
+                  className="input w-full dark:text-white [color-scheme:dark]"
                   value={editForm.date}
                   onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
                   required
