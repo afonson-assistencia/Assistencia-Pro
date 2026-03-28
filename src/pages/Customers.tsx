@@ -6,6 +6,7 @@ import { Customer } from '../types';
 import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart, Loader2, MoreVertical } from 'lucide-react';
 import { useAuth } from '../App';
 import { maskPhone } from '../utils/masks';
+import { getWhatsAppUrl } from '../utils/whatsapp';
 import { ServiceOrder, Sale } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -193,7 +194,7 @@ export default function Customers() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <a
-                          href={`https://wa.me/55${customer.phone.replace(/\D/g, '')}`}
+                          href={getWhatsAppUrl(customer.phone)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn btn-secondary h-8 w-8 p-0 text-green-600 dark:text-green-400"
@@ -283,7 +284,7 @@ export default function Customers() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <a
-                href={`https://wa.me/55${actionMenuCustomer.phone.replace(/\D/g, '')}`}
+                href={getWhatsAppUrl(actionMenuCustomer.phone)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-secondary flex-col gap-2 py-4 text-green-600 dark:text-green-400 h-auto"

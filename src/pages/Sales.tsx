@@ -23,6 +23,13 @@ export default function Sales() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
+  const getCustomerName = (sale: Sale | null) => {
+    if (!sale) return 'Consumidor Final';
+    if (!sale.customerId) return sale.customerName || 'Consumidor Final';
+    const customer = customers.find(c => c.id === sale.customerId);
+    return customer?.name || sale.customerName || 'Consumidor Final';
+  };
+
   // Form state
   const [customerId, setCustomerId] = useState('');
   const [currentItems, setCurrentItems] = useState<SaleItem[]>([]);
@@ -215,7 +222,8 @@ export default function Sales() {
                   user?.email?.toLowerCase() === 'afonsocnj@gmail.com';
 
   const filteredSales = sales.filter(sale => {
-    const matchesCustomer = sale.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const customerName = getCustomerName(sale);
+    const matchesCustomer = customerName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesProduct = sale.items?.some(item => 
       item.productName.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -318,7 +326,7 @@ export default function Sales() {
                   filteredSales.map((sale) => (
                     <tr key={sale.id} className="hover:bg-[var(--bg-main)]">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-[var(--text-main)]">{sale.customerName || 'Consumidor Final'}</div>
+                        <div className="font-medium text-[var(--text-main)]">{getCustomerName(sale)}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
@@ -398,7 +406,7 @@ export default function Sales() {
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--text-main)] font-medium">{sale.customerName || 'Consumidor Final'}</span>
+                    <span className="text-sm text-[var(--text-main)] font-medium">{getCustomerName(sale)}</span>
                     <span className="font-bold text-[var(--text-main)]">R$ {sale.totalValue.toFixed(2)}</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -471,7 +479,7 @@ export default function Sales() {
             <div className="space-y-4">
               <div className="flex justify-between text-sm">
                 <span className="text-[var(--text-muted)]">Cliente:</span>
-                <span className="font-medium text-[var(--text-main)]">{viewingSale.customerName || 'Consumidor Final'}</span>
+                <span className="font-medium text-[var(--text-main)]">{getCustomerName(viewingSale)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[var(--text-muted)]">Data:</span>

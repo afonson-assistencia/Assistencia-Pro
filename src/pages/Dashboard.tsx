@@ -80,7 +80,7 @@ export default function Dashboard() {
         const date = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt);
         const val = data.totalValue || 0;
         
-        if (data.status === 'ready' || data.status === 'delivered') {
+        if (data.status === 'delivered') {
           if (date >= todayS) {
             todayRev += val;
             todayOSRev += val;

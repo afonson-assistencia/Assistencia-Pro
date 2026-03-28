@@ -3,12 +3,13 @@ import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, update
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { Plus, Search, Filter, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical } from 'lucide-react';
+import { Plus, Search, Filter, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical, CheckCircle2, Clock, DollarSign, ShieldCheck } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { sendToN8N } from '../services/n8nService';
 import { maskPhone } from '../utils/masks';
+import { getWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../App';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -39,12 +40,24 @@ export default function ServiceOrders() {
   const [deadlineDays, setDeadlineDays] = useState(3);
   const [notes, setNotes] = useState('');
   const [totalValue, setTotalValue] = useState(0);
+  const [downPayment, setDownPayment] = useState(0);
+  const [downPaymentMethod, setDownPaymentMethod] = useState<'pix' | 'cash' | 'card'>('pix');
+  const [finalPayment, setFinalPayment] = useState(0);
+  const [finalPaymentMethod, setFinalPaymentMethod] = useState<'pix' | 'cash' | 'card'>('pix');
 
   // View state
   const [viewingOrder, setViewingOrder] = useState<ServiceOrder | null>(null);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const [actionMenuOrder, setActionMenuOrder] = useState<ServiceOrder | null>(null);
+
+  const getCustomerInfo = (order: ServiceOrder) => {
+    const customer = customers.find(c => c.id === order.customerId);
+    return {
+      name: customer?.name || order.customerName,
+      phone: customer?.phone || order.customerPhone
+    };
+  };
 
   useEffect(() => {
     const qOrders = query(collection(db, 'serviceOrders'), orderBy('createdAt', 'desc'));
@@ -125,6 +138,10 @@ export default function ServiceOrders() {
         warrantyDays,
         notes,
         totalValue,
+        downPayment,
+        downPaymentMethod,
+        finalPayment,
+        finalPaymentMethod,
       };
 
       if (editingOrder) {
@@ -191,6 +208,10 @@ export default function ServiceOrders() {
     
     setNotes(order.notes || '');
     setTotalValue(order.totalValue || 0);
+    setDownPayment(order.downPayment || 0);
+    setDownPaymentMethod(order.downPaymentMethod || 'pix');
+    setFinalPayment(order.finalPayment || 0);
+    setFinalPaymentMethod(order.finalPaymentMethod || 'pix');
     setIsModalOpen(true);
   };
 
@@ -206,6 +227,10 @@ export default function ServiceOrders() {
     setDeadlineDays(3);
     setNotes('');
     setTotalValue(0);
+    setDownPayment(0);
+    setDownPaymentMethod('pix');
+    setFinalPayment(0);
+    setFinalPaymentMethod('pix');
     setError(null);
     setEditingOrder(null);
   };
@@ -235,12 +260,13 @@ export default function ServiceOrders() {
 
       await updateDoc(doc(db, 'serviceOrders', id), updateData);
 
+      const customerInfo = getCustomerInfo(order);
       try {
         await sendToN8N({
           event: 'os_status_updated',
           orderId: id,
-          customerName: order.customerName,
-          customerPhone: order.customerPhone,
+          customerName: customerInfo.name,
+          customerPhone: customerInfo.phone,
           model: order.model,
           status: newStatus,
           statusLabel: STATUS_LABELS[newStatus],
@@ -258,10 +284,13 @@ export default function ServiceOrders() {
 
   const handleManualN8NSend = async (order: ServiceOrder) => {
     setSendingN8N(order.id);
+    const customerInfo = getCustomerInfo(order);
     try {
       await sendToN8N({
         event: 'os_manual_send',
         ...order,
+        customerName: customerInfo.name,
+        customerPhone: customerInfo.phone,
         entryDate: order.entryDate?.toDate?.()?.toISOString(),
         deadline: order.deadline?.toDate?.()?.toISOString(),
         createdAt: order.createdAt?.toDate?.()?.toISOString(),
@@ -293,6 +322,7 @@ export default function ServiceOrders() {
                   user?.email?.toLowerCase() === 'afonsocnj@gmail.com';
 
   const generateWhatsAppLink = (order: ServiceOrder) => {
+    const customerInfo = getCustomerInfo(order);
     const servicesList = order.services?.length > 0 ? `\n🛠️ *Serviços:* ${order.services.join(', ')}` : '';
     const assistanceName = settings.name || 'ASSISTÊNCIA';
     
@@ -309,38 +339,69 @@ export default function ServiceOrders() {
       statusEmoji = '🔧';
     }
 
+    const downPaymentInfo = order.downPayment && order.downPayment > 0 ? `\n💰 *Entrada:* R$ ${order.downPayment.toFixed(2)} (${order.downPaymentMethod?.toUpperCase()})` : '';
+    const finalPaymentInfo = order.finalPayment && order.finalPayment > 0 ? `\n💰 *Pago na Entrega:* R$ ${order.finalPayment.toFixed(2)} (${order.finalPaymentMethod?.toUpperCase()})` : '';
+    const remainingBalance = (order.totalValue || 0) - (order.downPayment || 0) - (order.finalPayment || 0);
+    const balanceInfo = remainingBalance > 0 ? `\n💳 *Saldo a Pagar:* R$ ${remainingBalance.toFixed(2)}` : '';
+
     const message = `📱 *${assistanceName.toUpperCase()}*
 ━━━━━━━━━━━━━━━━━━━━
 📄 *ORDEM DE SERVIÇO #${order.id.slice(-6).toUpperCase()}*
 📅 *Data:* ${format(new Date(), 'dd/MM/yyyy HH:mm')}
 
-👤 *CLIENTE:* ${order.customerName}
-📱 *CONTATO:* ${order.customerPhone}
+👤 *CLIENTE:* ${customerInfo.name}
+📱 *CONTATO:* ${customerInfo.phone}
 📱 *APARELHO:* ${order.model}
 ${statusEmoji} *STATUS:* ${statusText}
 ${servicesList}
 
 ⚠️ *PROBLEMA:* ${order.problem}
-💰 *VALOR TOTAL:* R$ ${order.totalValue?.toFixed(2)}
+💰 *VALOR TOTAL:* R$ ${order.totalValue?.toFixed(2)}${downPaymentInfo}${finalPaymentInfo}${balanceInfo}
 📅 *PRAZO:* ${order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : '-'}
 🛡️ *GARANTIA:* ${order.warrantyDays} dias
 ━━━━━━━━━━━━━━━━━━━━
 ${order.status === 'ready' 
   ? '✨ *Seu aparelho está pronto!* Pode vir retirá-lo quando desejar.' 
-  : 'Este documento é o seu comprovante de entrada. Guarde-o para a retirada do aparelho.'}
+  : order.status === 'delivered'
+    ? '✨ *Seu aparelho foi entregue!* Obrigado pela confiança.'
+    : 'Este documento é o seu comprovante de entrada. Guarde-o para a retirada do aparelho.'}
 
 🙏 *Obrigado pela preferência!*`;
     
-    const encoded = encodeURIComponent(message);
-    return `https://wa.me/55${order.customerPhone.replace(/\D/g, '')}?text=${encoded}`;
+    return getWhatsAppUrl(customerInfo.phone, message);
   };
 
   const filteredOrders = orders.filter(o => {
-    const matchesSearch = o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const customerInfo = getCustomerInfo(o);
+    const matchesSearch = customerInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          o.model.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const totalDeliveredValue = orders
+    .filter(o => o.status === 'delivered')
+    .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+
+  const totalPendingValue = orders
+    .filter(o => o.status === 'pending')
+    .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+
+  const isWarrantyExpired = (order: ServiceOrder) => {
+    if (order.status !== 'delivered' || !order.deliveredAt || !order.warrantyDays) return false;
+    const deliveredDate = order.deliveredAt.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt);
+    const expirationDate = addDays(deliveredDate, order.warrantyDays);
+    return new Date() > expirationDate;
+  };
+
+  const getWarrantyCountdown = (order: ServiceOrder) => {
+    if (order.status !== 'delivered' || !order.deliveredAt || !order.warrantyDays) return null;
+    const deliveredDate = order.deliveredAt.toDate ? order.deliveredAt.toDate() : new Date(order.deliveredAt);
+    const expirationDate = addDays(deliveredDate, order.warrantyDays);
+    const diffTime = expirationDate.getTime() - new Date().getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
   return (
     <div className="space-y-6">
@@ -355,6 +416,32 @@ ${order.status === 'ready'
             <span className="hidden sm:inline">Nova O.S.</span>
             <span className="sm:hidden">Nova</span>
           </button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+        <div className="card p-4 sm:p-6 bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Concluído (Entregue)</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">R$ {totalDeliveredValue.toFixed(2)}</p>
+            </div>
+            <div className="rounded-full p-3 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-4 sm:p-6 bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">Total Pendente</p>
+              <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">R$ {totalPendingValue.toFixed(2)}</p>
+            </div>
+            <div className="rounded-full p-3 bg-amber-100 dark:bg-amber-900/20 text-amber-600">
+              <Clock className="h-6 w-6" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -393,17 +480,24 @@ ${order.status === 'ready'
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         {filteredOrders.length > 0 ? (
           filteredOrders.map((order) => (
-            <div key={order.id} className="card p-6 transition-all hover:shadow-md border border-[var(--border-color)]">
+            <div key={order.id} className={`card p-6 transition-all hover:shadow-md border ${
+              isWarrantyExpired(order) 
+                ? 'bg-red-50 dark:bg-red-900/10 border-red-500 ring-1 ring-red-500' 
+                : 'border-[var(--border-color)]'
+            }`}>
               <div className="mb-4 flex items-start justify-between">
                 <div>
                   <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status]}`}>
                     {STATUS_LABELS[order.status]}
                   </span>
                   <h3 className="mt-2 text-lg font-bold text-[var(--text-main)]">{order.model}</h3>
-                  <p className="text-sm text-[var(--text-muted)]">{order.customerName}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{getCustomerInfo(order).name}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-[var(--text-main)]">R$ {order.totalValue?.toFixed(2)}</p>
+                  {order.downPayment && order.downPayment > 0 && (
+                    <p className="text-[10px] text-emerald-600 font-medium">Entrada: R$ {order.downPayment.toFixed(2)}</p>
+                  )}
                   <p className="text-xs text-[var(--text-muted)]">#{order.id.slice(-4).toUpperCase()}</p>
                 </div>
               </div>
@@ -437,6 +531,14 @@ ${order.status === 'ready'
                     {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                   </span>
                 </div>
+                {order.status === 'delivered' && (
+                  <div className="flex justify-between border-t border-[var(--border-color)] pt-2 mt-2">
+                    <span className="text-[var(--text-muted)]">Garantia:</span>
+                    <span className={`font-bold ${isWarrantyExpired(order) ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {isWarrantyExpired(order) ? 'EXPIRADA' : `${getWarrantyCountdown(order)} dias restantes`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -723,15 +825,64 @@ ${order.status === 'ready'
                 </div>
               </div>
               <div className="md:col-span-2">
-                <label className="text-sm font-medium text-[var(--text-muted)]">Problema Relatado / Defeito</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Problema Relatado / Defeito (Opcional)</label>
                 <textarea
-                  required
                   rows={2}
                   className="input mt-1 h-auto py-2"
                   placeholder="Descreva o problema detalhadamente..."
                   value={problem}
                   onChange={(e) => setProblem(e.target.value)}
                 />
+              </div>
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--border-color)] pt-4 mt-2">
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Valor de Entrada (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input mt-1"
+                    placeholder="0.00"
+                    value={downPayment}
+                    onChange={(e) => setDownPayment(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Forma de Pagamento (Entrada)</label>
+                  <select
+                    className="input mt-1"
+                    value={downPaymentMethod}
+                    onChange={(e) => setDownPaymentMethod(e.target.value as any)}
+                  >
+                    <option value="pix">Pix</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="card">Cartão</option>
+                  </select>
+                </div>
+              </div>
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--border-color)] pt-4 mt-2">
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Valor Pago na Entrega (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input mt-1"
+                    placeholder="0.00"
+                    value={finalPayment}
+                    onChange={(e) => setFinalPayment(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Forma de Pagamento (Entrega)</label>
+                  <select
+                    className="input mt-1"
+                    value={finalPaymentMethod}
+                    onChange={(e) => setFinalPaymentMethod(e.target.value as any)}
+                  >
+                    <option value="pix">Pix</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="card">Cartão</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Prazo de Entrega (Dias)</label>
@@ -801,16 +952,31 @@ ${order.status === 'ready'
             </div>
 
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/50">
                   <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Cliente</p>
-                  <p className="mt-1 font-medium text-[var(--text-main)]">{viewingOrder.customerName}</p>
-                  <p className="text-sm text-[var(--text-muted)]">{viewingOrder.customerPhone}</p>
+                  <p className="mt-1 font-medium text-[var(--text-main)]">{getCustomerInfo(viewingOrder).name}</p>
+                  <p className="text-sm text-[var(--text-muted)]">{getCustomerInfo(viewingOrder).phone}</p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/50">
                   <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Aparelho</p>
                   <p className="mt-1 font-medium text-[var(--text-main)]">{viewingOrder.model}</p>
                   <p className="text-sm text-[var(--text-muted)]">Entrada: {viewingOrder.entryDate?.toDate ? format(viewingOrder.entryDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/50">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Financeiro</p>
+                  <p className="mt-1 font-medium text-[var(--text-main)]">Total: R$ {viewingOrder.totalValue?.toFixed(2)}</p>
+                  <div className="mt-1 space-y-1">
+                    {viewingOrder.downPayment && viewingOrder.downPayment > 0 && (
+                      <p className="text-xs text-emerald-600">Entrada: R$ {viewingOrder.downPayment.toFixed(2)} ({viewingOrder.downPaymentMethod?.toUpperCase()})</p>
+                    )}
+                    {viewingOrder.finalPayment && viewingOrder.finalPayment > 0 && (
+                      <p className="text-xs text-blue-600">Final: R$ {viewingOrder.finalPayment.toFixed(2)} ({viewingOrder.finalPaymentMethod?.toUpperCase()})</p>
+                    )}
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 pt-1 border-t border-slate-200 dark:border-slate-800">
+                      Saldo Restante: R$ {((viewingOrder.totalValue || 0) - (viewingOrder.downPayment || 0) - (viewingOrder.finalPayment || 0)).toFixed(2)}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -832,6 +998,38 @@ ${order.status === 'ready'
                   </div>
                 </div>
               </div>
+
+              {viewingOrder.status === 'delivered' && viewingOrder.deliveredAt && (
+                <div className="rounded-lg border border-[var(--border-color)] p-4 bg-slate-50 dark:bg-slate-900/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 font-semibold text-[var(--text-main)]">
+                      <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                      Garantia do Serviço
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isWarrantyExpired(viewingOrder) ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {isWarrantyExpired(viewingOrder) ? 'EXPIRADA' : 'ATIVA'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-[var(--text-muted)] text-xs uppercase tracking-wider font-semibold">Prazo Total</p>
+                      <p className="font-medium text-[var(--text-main)]">{viewingOrder.warrantyDays} dias</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--text-muted)] text-xs uppercase tracking-wider font-semibold">Status</p>
+                      <p className={`font-bold ${isWarrantyExpired(viewingOrder) ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {isWarrantyExpired(viewingOrder) ? 'Expirada' : `${getWarrantyCountdown(viewingOrder)} dias restantes`}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--text-muted)] text-xs uppercase tracking-wider font-semibold">Data de Entrega</p>
+                      <p className="font-medium text-[var(--text-main)]">
+                        {viewingOrder.deliveredAt.toDate ? format(viewingOrder.deliveredAt.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {viewingOrder.notes && (
                 <div>
