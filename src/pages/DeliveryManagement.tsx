@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { DeliveryLocation, DeliveryRun, DeliveryStatus, Motoboy } from '../types';
@@ -8,15 +8,6 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../App';
 import { Navigate } from 'react-router-dom';
-
-enum OperationTypeLocal {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
 
 export default function DeliveryManagement() {
   const { profile } = useAuth();
@@ -51,6 +42,32 @@ export default function DeliveryManagement() {
   const [selectedMotoboy, setSelectedMotoboy] = useState('all');
   const [statusFilter, setStatusFilter] = useState<DeliveryStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRunIds, setSelectedRunIds] = useState<string[]>([]);
+
+  const baseFilteredRuns = runs.filter(run => {
+    const matchesDate = filterDate === '' || run.date === filterDate;
+    const matchesMotoboy = selectedMotoboy === 'all' || run.motoboyName === selectedMotoboy;
+    const matchesSearch = run.motoboyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         run.locationName.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesDate && matchesMotoboy && matchesSearch;
+  });
+
+  const filteredRuns = baseFilteredRuns.filter(run => {
+    // Se o filtro de status for 'all' e estivermos vendo 'todas as datas', mostra apenas 'pendente'
+    // para não poluir a lista com corridas já pagas do passado.
+    if (statusFilter === 'all' && filterDate === '') {
+      return run.status === 'pending';
+    }
+    return statusFilter === 'all' || run.status === statusFilter;
+  });
+
+  const totalApproved = baseFilteredRuns
+    .filter(r => r.status === 'approved')
+    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
+
+  const totalPaid = baseFilteredRuns
+    .filter(r => r.status === 'paid')
+    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
 
   if (profile?.role === 'motoboy') {
     return <Navigate to="/motoboy-dashboard" />;
@@ -173,6 +190,46 @@ export default function DeliveryManagement() {
     }
   };
 
+  const handleBulkUpdateStatus = async (status: DeliveryStatus) => {
+    if (selectedRunIds.length === 0) return;
+    
+    setLoading(prev => ({ ...prev, bulkUpdate: true }));
+    try {
+      const batch = writeBatch(db);
+      const timestamp = serverTimestamp();
+      
+      selectedRunIds.forEach(id => {
+        const runRef = doc(db, 'deliveryRuns', id);
+        const updateData: any = { status };
+        if (status === 'paid') {
+          updateData.paidAt = timestamp;
+        }
+        batch.update(runRef, updateData);
+      });
+      
+      await batch.commit();
+      setSelectedRunIds([]);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'deliveryRuns/bulk');
+    } finally {
+      setLoading(prev => ({ ...prev, bulkUpdate: false }));
+    }
+  };
+
+  const toggleSelectRun = (id: string) => {
+    setSelectedRunIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRunIds.length === filteredRuns.length) {
+      setSelectedRunIds([]);
+    } else {
+      setSelectedRunIds(filteredRuns.map(r => r.id));
+    }
+  };
+
   const handleDeleteRun = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta corrida?')) return;
     try {
@@ -226,23 +283,6 @@ export default function DeliveryManagement() {
       handleFirestoreError(error, OperationType.UPDATE, 'deliveryRuns');
     }
   };
-
-  const filteredRuns = runs.filter(run => {
-    const matchesDate = run.date === filterDate;
-    const matchesMotoboy = selectedMotoboy === 'all' || run.motoboyName === selectedMotoboy;
-    const matchesStatus = statusFilter === 'all' || run.status === statusFilter;
-    const matchesSearch = run.motoboyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         run.locationName.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesDate && matchesMotoboy && matchesStatus && matchesSearch;
-  });
-
-  const totalValue = filteredRuns
-    .filter(r => r.status === 'approved' || r.status === 'paid')
-    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
-
-  const totalPaid = filteredRuns
-    .filter(r => r.status === 'paid')
-    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
 
   const openNewLocationModal = () => {
     setEditingLocation(null);
@@ -317,46 +357,89 @@ export default function DeliveryManagement() {
               <Calendar className="h-5 w-5" />
               Controle de Corridas
             </h2>
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-                <input
-                  type="text"
-                  placeholder="Buscar motoboy ou local..."
-                  className="input pl-10 text-sm"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    placeholder="Buscar motoboy ou local..."
+                    className="input pl-10 text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <input
+                    type="date"
+                    className="input text-sm dark:text-white [color-scheme:dark] flex-1 sm:w-40"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                  />
+                  <button 
+                    onClick={() => setFilterDate('')}
+                    className={`btn btn-secondary text-xs px-2 h-10 ${filterDate === '' ? 'bg-blue-100 text-blue-600' : ''}`}
+                    title="Ver todas as datas"
+                  >
+                    Todas
+                  </button>
+                </div>
+                <select
+                  className="input text-sm"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                >
+                  <option value="all">Todos Status</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="approved">Aprovadas</option>
+                  <option value="paid">Pagas</option>
+                  <option value="rejected">Rejeitadas</option>
+                </select>
+                <select
+                  className="input text-sm"
+                  value={selectedMotoboy}
+                  onChange={(e) => setSelectedMotoboy(e.target.value)}
+                >
+                  <option value="all">Todos Motoboys</option>
+                  {motoboys.map(m => (
+                    <option key={m.id} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
               </div>
-              <input
-                type="date"
-                className="input text-sm dark:text-white [color-scheme:dark]"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-              />
-              <select
-                className="input text-sm"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-              >
-                <option value="all">Todos Status</option>
-                <option value="pending">Pendentes</option>
-                <option value="approved">Aprovadas</option>
-                <option value="paid">Pagas</option>
-                <option value="rejected">Rejeitadas</option>
-              </select>
-              <select
-                className="input text-sm"
-                value={selectedMotoboy}
-                onChange={(e) => setSelectedMotoboy(e.target.value)}
-              >
-                <option value="all">Todos Motoboys</option>
-                {motoboys.map(m => (
-                  <option key={m.id} value={m.name}>{m.name}</option>
-                ))}
-              </select>
             </div>
-          </div>
+
+            {selectedRunIds.length > 0 && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-y border-blue-100 dark:border-blue-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-blue-600">
+                    {selectedRunIds.length} selecionadas
+                  </span>
+                  <button 
+                    onClick={() => setSelectedRunIds([])}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Limpar seleção
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => handleBulkUpdateStatus('approved')}
+                    disabled={loading.bulkUpdate}
+                    className="btn bg-emerald-600 text-white hover:bg-emerald-700 text-xs py-2 flex-1 sm:flex-none gap-2"
+                  >
+                    {loading.bulkUpdate ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                    Aprovar Selecionadas
+                  </button>
+                  <button
+                    onClick={() => handleBulkUpdateStatus('paid')}
+                    disabled={loading.bulkUpdate}
+                    className="btn bg-blue-600 text-white hover:bg-blue-700 text-xs py-2 flex-1 sm:flex-none gap-2"
+                  >
+                    {loading.bulkUpdate ? <Loader2 className="h-3 w-3 animate-spin" /> : <DollarSign className="h-3 w-3" />}
+                    Pagar Selecionadas
+                  </button>
+                </div>
+              </div>
+            )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="card p-4 flex items-center gap-4">
@@ -373,8 +456,8 @@ export default function DeliveryManagement() {
                 <DollarSign className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-[var(--text-muted)]">Total Aprovado</p>
-                <p className="text-xl font-bold text-emerald-600">R$ {totalValue.toFixed(2)}</p>
+                <p className="text-sm text-[var(--text-muted)]">Total a Pagar</p>
+                <p className="text-xl font-bold text-emerald-600">R$ {totalApproved.toFixed(2)}</p>
               </div>
             </div>
             <div className="card p-4 flex items-center gap-4">
@@ -394,6 +477,15 @@ export default function DeliveryManagement() {
               <table className="w-full text-left text-sm min-w-[700px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/50">
                   <tr>
+                    <th className="px-4 py-3 w-10">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={filteredRuns.length > 0 && selectedRunIds.length === filteredRuns.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th className="px-4 py-3 font-semibold">Data</th>
                     <th className="px-4 py-3 font-semibold">Motoboy</th>
                     <th className="px-4 py-3 font-semibold">Local</th>
                     <th className="px-4 py-3 font-semibold">Qtd</th>
@@ -405,7 +497,18 @@ export default function DeliveryManagement() {
                 <tbody className="divide-y divide-[var(--border-color)]">
                   {filteredRuns.length > 0 ? (
                     filteredRuns.map(run => (
-                      <tr key={run.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <tr key={run.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${selectedRunIds.includes(run.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                        <td className="px-4 py-3">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            checked={selectedRunIds.includes(run.id)}
+                            onChange={() => toggleSelectRun(run.id)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-xs font-medium text-[var(--text-muted)]">
+                          {run.date ? format(new Date(run.date + 'T12:00:00'), 'dd/MM/yy') : '-'}
+                        </td>
                         <td className="px-4 py-3 font-medium">{run.motoboyName}</td>
                         <td className="px-4 py-3">{run.locationName}</td>
                         <td className="px-4 py-3">{run.quantity || 1}</td>
@@ -535,14 +638,26 @@ export default function DeliveryManagement() {
             <div className="md:hidden divide-y divide-[var(--border-color)]">
               {filteredRuns.length > 0 ? (
                 filteredRuns.map(run => (
-                  <div key={run.id} className="p-4 space-y-3">
+                  <div key={run.id} className={`p-4 space-y-3 transition-colors ${selectedRunIds.includes(run.id) ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
                     <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-[var(--text-main)]">{run.motoboyName}</p>
-                        <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {run.locationName}
-                        </p>
+                      <div className="flex gap-3">
+                        <input 
+                          type="checkbox" 
+                          className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedRunIds.includes(run.id)}
+                          onChange={() => toggleSelectRun(run.id)}
+                        />
+                        <div>
+                          <p className="font-bold text-[var(--text-main)]">{run.motoboyName}</p>
+                          <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {run.date ? format(new Date(run.date + 'T12:00:00'), 'dd/MM/yy') : '-'}
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {run.locationName}
+                          </p>
+                        </div>
                       </div>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                         run.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :

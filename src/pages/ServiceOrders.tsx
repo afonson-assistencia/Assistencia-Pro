@@ -1,19 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc, doc, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { Plus, Search, Filter, Printer, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical } from 'lucide-react';
+import { Plus, Search, Filter, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useReactToPrint } from 'react-to-print';
 import { sendToN8N } from '../services/n8nService';
 import { maskPhone } from '../utils/masks';
 import { useAuth } from '../App';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function ServiceOrders() {
   const { user, profile } = useAuth();
+  const { settings } = useSettings();
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,17 +40,11 @@ export default function ServiceOrders() {
   const [notes, setNotes] = useState('');
   const [totalValue, setTotalValue] = useState(0);
 
-  // Print state
-  const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+  // View state
   const [viewingOrder, setViewingOrder] = useState<ServiceOrder | null>(null);
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const [actionMenuOrder, setActionMenuOrder] = useState<ServiceOrder | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
-
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-  });
 
   useEffect(() => {
     const qOrders = query(collection(db, 'serviceOrders'), orderBy('createdAt', 'desc'));
@@ -298,14 +293,43 @@ export default function ServiceOrders() {
                   user?.email?.toLowerCase() === 'afonsocnj@gmail.com';
 
   const generateWhatsAppLink = (order: ServiceOrder) => {
-    const servicesList = order.services?.length > 0 ? `\nServiços: ${order.services.join(', ')}` : '';
-    const message = `Olá ${order.customerName}! Sua ordem de serviço para o ${order.model} está com o status: ${STATUS_LABELS[order.status].toUpperCase()}.${servicesList}
+    const servicesList = order.services?.length > 0 ? `\n🛠️ *Serviços:* ${order.services.join(', ')}` : '';
+    const assistanceName = settings.name || 'ASSISTÊNCIA';
     
-Problema: ${order.problem}
-Valor: R$ ${order.totalValue?.toFixed(2)}
-Garantia: ${order.warrantyDays} dias
+    let statusEmoji = '⏳';
+    let statusText = STATUS_LABELS[order.status].toUpperCase();
     
-Obrigado pela preferência!`;
+    if (order.status === 'ready') {
+      statusEmoji = '✅';
+      statusText = 'PRONTO PARA RETIRADA';
+    } else if (order.status === 'delivered') {
+      statusEmoji = '📦';
+      statusText = 'ENTREGUE';
+    } else if (order.status === 'in-progress') {
+      statusEmoji = '🔧';
+    }
+
+    const message = `📱 *${assistanceName.toUpperCase()}*
+━━━━━━━━━━━━━━━━━━━━
+📄 *ORDEM DE SERVIÇO #${order.id.slice(-6).toUpperCase()}*
+📅 *Data:* ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+
+👤 *CLIENTE:* ${order.customerName}
+📱 *CONTATO:* ${order.customerPhone}
+📱 *APARELHO:* ${order.model}
+${statusEmoji} *STATUS:* ${statusText}
+${servicesList}
+
+⚠️ *PROBLEMA:* ${order.problem}
+💰 *VALOR TOTAL:* R$ ${order.totalValue?.toFixed(2)}
+📅 *PRAZO:* ${order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : '-'}
+🛡️ *GARANTIA:* ${order.warrantyDays} dias
+━━━━━━━━━━━━━━━━━━━━
+${order.status === 'ready' 
+  ? '✨ *Seu aparelho está pronto!* Pode vir retirá-lo quando desejar.' 
+  : 'Este documento é o seu comprovante de entrada. Guarde-o para a retirada do aparelho.'}
+
+🙏 *Obrigado pela preferência!*`;
     
     const encoded = encodeURIComponent(message);
     return `https://wa.me/55${order.customerPhone.replace(/\D/g, '')}?text=${encoded}`;
@@ -466,20 +490,6 @@ Obrigado pela preferência!`;
                     <Send className={`h-4 w-4 ${sendingN8N === order.id ? 'animate-pulse' : ''}`} />
                   </button>
                   <button
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setTimeout(() => {
-                        if (printRef.current) {
-                          handlePrint();
-                        }
-                      }, 300);
-                    }}
-                    className="btn btn-secondary h-8 w-8 p-0 text-[var(--text-muted)]"
-                    title="Imprimir"
-                  >
-                    <Printer className="h-4 w-4" />
-                  </button>
-                  <button
                     onClick={() => setDeletingOrder(order.id)}
                     className="btn btn-secondary h-8 w-8 p-0 text-red-600 dark:text-red-400"
                     title="Excluir"
@@ -537,21 +547,6 @@ Obrigado pela preferência!`;
               >
                 <Edit2 className="h-6 w-6" />
                 <span>Editar</span>
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedOrder(actionMenuOrder);
-                  setTimeout(() => {
-                    if (printRef.current) {
-                      handlePrint();
-                    }
-                    setActionMenuOrder(null);
-                  }, 300);
-                }}
-                className="btn btn-secondary flex-col gap-2 py-4 text-slate-600 dark:text-slate-400 h-auto"
-              >
-                <Printer className="h-6 w-6" />
-                <span>Imprimir</span>
               </button>
               <button
                 onClick={() => {
@@ -889,107 +884,27 @@ Obrigado pela preferência!`;
                 </div>
               </div>
             </div>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={() => setViewingOrder(null)}
+                className="btn btn-secondary flex-1"
+              >
+                Fechar
+              </button>
+              <a
+                href={generateWhatsAppLink(viewingOrder)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white border-none"
+              >
+                <MessageSquare className="h-4 w-4" />
+                WhatsApp
+              </a>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Componente Oculto para Impressão */}
-      <div style={{ display: 'none' }}>
-        <div style={{ display: 'block' }}>
-          <PrintOS ref={printRef} order={selectedOrder} key={selectedOrder?.id} />
-        </div>
-      </div>
     </div>
   );
 }
-
-// Componente de Impressão
-import React from 'react';
-const PrintOS = React.forwardRef<HTMLDivElement, { order: ServiceOrder | null }>(({ order }, ref) => {
-  if (!order) return null;
-
-  return (
-    <div ref={ref} className="p-8 text-slate-900 font-sans max-w-[800px] mx-auto bg-white">
-      <div className="mb-6 flex justify-between border-b-2 border-slate-900 pb-4">
-        <div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter">ASSISTÊNCIA PRO</h1>
-          <p className="text-sm font-bold">Consertos e Acessórios</p>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-bold">O.S. #{order.id.slice(-6).toUpperCase()}</p>
-          <p className="text-sm">{format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
-        </div>
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-8">
-        <div>
-          <h3 className="mb-1 font-black text-xs uppercase text-slate-500">CLIENTE</h3>
-          <p className="text-lg font-bold">{order.customerName}</p>
-          <p className="text-sm">{order.customerPhone}</p>
-        </div>
-        <div>
-          <h3 className="mb-1 font-black text-xs uppercase text-slate-500">APARELHO</h3>
-          <p className="text-lg font-bold">{order.model}</p>
-          <p className="text-sm font-semibold">Status: {STATUS_LABELS[order.status]}</p>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <h3 className="mb-2 font-black text-xs uppercase text-slate-500">SERVIÇOS E PROBLEMA</h3>
-        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50 space-y-4">
-          {order.services?.length > 0 && (
-            <div>
-              <p className="text-[10px] font-black uppercase text-slate-400 mb-1">SERVIÇOS SOLICITADOS:</p>
-              <p className="font-bold text-sm">{order.services.join(', ')}</p>
-            </div>
-          )}
-          <div>
-            <p className="text-[10px] font-black uppercase text-slate-400 mb-1">PROBLEMA RELATADO:</p>
-            <p className="text-sm">{order.problem}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50">
-          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">VALOR TOTAL</p>
-          <p className="text-xl font-black">R$ {order.totalValue?.toFixed(2)}</p>
-        </div>
-        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50">
-          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">PRAZO</p>
-          <p className="text-xl font-black">
-            {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : '-'}
-          </p>
-        </div>
-        <div className="rounded-xl border-2 border-slate-100 p-4 bg-slate-50/50">
-          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">GARANTIA</p>
-          <p className="text-xl font-black">{order.warrantyDays} dias</p>
-        </div>
-      </div>
-
-      {order.notes && (
-        <div className="mb-8">
-          <h3 className="mb-1 font-black text-xs uppercase text-slate-500">OBSERVAÇÕES</h3>
-          <p className="text-sm italic text-slate-600">{order.notes}</p>
-        </div>
-      )}
-
-      <div className="mt-12 flex justify-between gap-12 border-t border-slate-100 pt-8">
-        <div className="text-center">
-          <p className="text-xs font-black uppercase text-slate-400 mb-1">Assinatura do Cliente</p>
-          <p className="text-[10px] font-bold text-slate-300 italic">Assinado Digitalmente</p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs font-black uppercase text-slate-400 mb-1">Assinatura do Técnico</p>
-          <p className="text-[10px] font-bold text-slate-300 italic">Assinado Digitalmente</p>
-        </div>
-      </div>
-
-      <div className="mt-12 pt-8 border-t border-slate-100 text-center">
-        <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
-          Este documento é um comprovante de entrada de serviço. Guarde-o para a retirada do aparelho.
-        </p>
-      </div>
-    </div>
-  );
-});
