@@ -4,8 +4,7 @@ const urlsToCache = [
   '/index.html',
   '/manifest-admin.json',
   '/manifest-motoboy.json',
-  'https://cdn-icons-png.flaticon.com/512/1048/1048953.png',
-  'https://img.freepik.com/premium-photo/delivery-man-scooter-express-food-delivery-around-city-yellow-background-delivery-fast-high-speed-ai-generation_235573-2619.jpg'
+  '/logo.png'
 ];
 
 self.addEventListener('install', event => {

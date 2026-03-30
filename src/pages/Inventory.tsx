@@ -30,6 +30,8 @@ export default function Inventory() {
   const [category, setCategory] = useState('');
   const [imei, setImei] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [categoryName, setCategoryName] = useState('');
 
   useEffect(() => {
@@ -83,6 +85,13 @@ export default function Inventory() {
     e.preventDefault();
     setActionLoading(prev => ({ ...prev, submitProduct: true }));
     try {
+      let finalImageUrls = imageUrls.filter(url => url.trim() !== '');
+      
+      // Add placeholder for iPhone 14 Pro if no images provided
+      if (name.toLowerCase().includes('iphone 14 pro') && finalImageUrls.length === 0 && !imageUrl) {
+        finalImageUrls = ['https://picsum.photos/seed/iphone14pro/800/800'];
+      }
+
       if (editingProduct) {
         await updateDoc(doc(db, 'products', editingProduct.id), {
           name,
@@ -91,6 +100,8 @@ export default function Inventory() {
           category,
           imei,
           description,
+          imageUrl: finalImageUrls[0] || imageUrl,
+          imageUrls: finalImageUrls,
           updatedAt: serverTimestamp(),
         });
         setSuccess('Produto atualizado com sucesso!');
@@ -102,6 +113,8 @@ export default function Inventory() {
           category,
           imei,
           description,
+          imageUrl: finalImageUrls[0] || imageUrl,
+          imageUrls: finalImageUrls,
           createdAt: serverTimestamp(),
         });
         setSuccess('Produto cadastrado com sucesso!');
@@ -165,6 +178,8 @@ export default function Inventory() {
       setCategory(product.category || '');
       setImei(product.imei || '');
       setDescription(product.description || '');
+      setImageUrl(product.imageUrl || '');
+      setImageUrls(product.imageUrls || (product.imageUrl ? [product.imageUrl] : []));
     } else {
       setEditingProduct(null);
       resetForm();
@@ -180,6 +195,8 @@ export default function Inventory() {
     setCategory('');
     setImei('');
     setDescription('');
+    setImageUrl('');
+    setImageUrls([]);
   };
 
   const updateStock = async (id: string, newStock: number) => {
@@ -332,10 +349,19 @@ export default function Inventory() {
               filteredProducts.map((product) => (
                 <div key={product.id} className="card p-4 space-y-3">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-[var(--text-main)]">{product.name}</h3>
-                      <p className="text-xs text-[var(--text-muted)]">{product.category || 'Sem Categoria'}</p>
-                      {product.imei && <p className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-1">IMEI: {product.imei}</p>}
+                    <div className="flex gap-3">
+                      <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Package className="h-6 w-6 text-slate-400" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-[var(--text-main)]">{product.name}</h3>
+                        <p className="text-xs text-[var(--text-muted)]">{product.category || 'Sem Categoria'}</p>
+                        {product.imei && <p className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-1">IMEI: {product.imei}</p>}
+                      </div>
                     </div>
                     <div className="relative">
                       <button
@@ -428,9 +454,18 @@ export default function Inventory() {
                     filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                         <td className="px-6 py-4 font-medium text-[var(--text-main)]">
-                          <div>
-                            {product.name}
-                            {product.description && <p className="text-[10px] text-[var(--text-muted)] font-normal line-clamp-1">{product.description}</p>}
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {product.imageUrl ? (
+                                <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <Package className="h-5 w-5 text-slate-400" />
+                              )}
+                            </div>
+                            <div>
+                              {product.name}
+                              {product.description && <p className="text-[10px] text-[var(--text-muted)] font-normal line-clamp-1">{product.description}</p>}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-[var(--text-muted)] font-mono text-xs">{product.imei || '-'}</td>
@@ -626,14 +661,74 @@ export default function Inventory() {
                   onChange={(e) => setImei(e.target.value)}
                 />
               </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Imagem Principal (URL)</label>
+                  <input
+                    type="url"
+                    className="input mt-1"
+                    placeholder="https://exemplo.com/imagem.jpg"
+                    value={imageUrls[0] || ''}
+                    onChange={(e) => {
+                      const newUrls = [...imageUrls];
+                      if (newUrls.length === 0) newUrls.push(e.target.value);
+                      else newUrls[0] = e.target.value;
+                      setImageUrls(newUrls);
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-muted)]">Imagens Adicionais (Opcional)</label>
+                  <div className="space-y-2 mt-1">
+                    {imageUrls.slice(1).map((url, idx) => (
+                      <div key={idx + 1} className="flex gap-2">
+                        <input
+                          type="url"
+                          className="input flex-1"
+                          placeholder="https://exemplo.com/imagem-extra.jpg"
+                          value={url}
+                          onChange={(e) => {
+                            const newUrls = [...imageUrls];
+                            newUrls[idx + 1] = e.target.value;
+                            setImageUrls(newUrls);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setImageUrls(imageUrls.filter((_, i) => i !== idx + 1))}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setImageUrls([...imageUrls, ''])}
+                      className="btn btn-secondary w-full gap-2 text-xs py-2"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Adicionar mais uma imagem
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)]">Descrição / Observações</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Descrição / Observações (Markdown)</label>
                 <textarea
-                  className="input mt-1 min-h-[80px]"
-                  placeholder="Ex: Cor preta, 128GB, com marcas de uso..."
+                  className="input mt-1 min-h-[120px]"
+                  placeholder="Ex: **Somos especializados** em conserto de aparelhos celulares...
+
+- Troca de tela
+- Bateria
+- Conectores"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
+                <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                  Dica: Use **negrito**, *itálico* e listas (-) para organizar a descrição.
+                </p>
               </div>
               <div className="flex gap-3 pt-4">
                 <button

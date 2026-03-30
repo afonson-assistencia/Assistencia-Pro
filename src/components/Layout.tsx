@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Package, ShoppingCart, LogOut, Menu, X, Receipt, Moon, Sun, ShieldCheck, Download, Wallet, Settings as SettingsIcon, Bike, Database } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Package, ShoppingCart, LogOut, Menu, X, Receipt, Moon, Sun, ShieldCheck, Download, Wallet, Settings as SettingsIcon, Bike, Database, Globe } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -42,6 +42,7 @@ export default function Layout() {
       { path: '/expenses', label: 'Despesas', icon: Receipt },
       { path: '/cash-closure', label: 'Fechamento', icon: Wallet },
       { path: '/delivery-management', label: 'Entregas', icon: Bike },
+      { path: '/storefront', label: 'Vitrine', icon: Globe },
     ]),
     ...(isAdmin ? [{ path: '/settings', label: 'Configurações', icon: SettingsIcon }] : []),
   ];

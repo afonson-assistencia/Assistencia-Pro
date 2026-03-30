@@ -33,8 +33,12 @@ export default function Landing() {
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-3"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 shadow-lg shadow-blue-500/20">
-            <ShieldCheck className="h-6 w-6 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 shadow-lg shadow-blue-500/20 overflow-hidden">
+            {settings.logoUrl ? (
+              <img src={settings.logoUrl} alt="Logo" className="h-full w-full object-contain p-1.5" />
+            ) : (
+              <ShieldCheck className="h-6 w-6 text-white" />
+            )}
           </div>
           <span className="text-xl font-bold tracking-tight">{settings.name}</span>
         </motion.div>

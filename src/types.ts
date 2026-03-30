@@ -53,6 +53,31 @@ export interface Product {
   category?: string;
   imei?: string;
   description?: string;
+  imageUrl?: string;
+  imageUrls?: string[];
+  createdAt: any;
+  updatedAt?: any;
+}
+
+export interface StorefrontTheme {
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+}
+
+export interface Storefront {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  whatsappNumber: string;
+  theme: StorefrontTheme;
+  productIds: string[];
+  active: boolean;
+  ownerId: string;
   createdAt: any;
   updatedAt?: any;
 }

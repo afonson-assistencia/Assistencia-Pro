@@ -19,7 +19,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<BusinessSettings>({
     name: 'Assistência Pro',
-    logoUrl: '',
+    logoUrl: '/logo.png',
   });
   const [loading, setLoading] = useState(true);
 

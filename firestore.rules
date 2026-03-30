@@ -24,6 +24,17 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(fields);
     }
 
+    // Validate storefront data
+    function isValidStorefront(data) {
+      return hasOnlyAllowedFields(['name', 'slug', 'description', 'whatsappNumber', 'theme', 'productIds', 'active', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() < 50 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 1000)) &&
+             (!('whatsappNumber' in data) || (data.whatsappNumber is string && data.whatsappNumber.size() < 20)) &&
+             data.active is bool &&
+             data.productIds is list;
+    }
+
     // ===============================================================
     // Match Rules
     // ===============================================================
@@ -46,7 +57,7 @@ service cloud.firestore {
     }
 
     match /products/{productId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create, update: if isSignedIn();
       allow delete: if isAdmin();
     }
@@ -89,6 +100,13 @@ service cloud.firestore {
     match /shoppingList/{itemId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isSignedIn();
+    }
+
+    match /storefronts/{storefrontId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidStorefront(request.resource.data);
+      allow update: if isAdmin() && isValidStorefront(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /settings/{docId} {

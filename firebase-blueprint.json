@@ -45,6 +45,8 @@
         "price": { "type": "number" },
         "stock": { "type": "integer" },
         "category": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "price", "stock"]
@@ -162,6 +164,36 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "quantity", "bought"]
+    },
+    "storefronts": {
+      "title": "Storefront",
+      "description": "A customizable landing page for products and services",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string", "description": "Unique URL identifier" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "theme": {
+          "type": "object",
+          "properties": {
+            "primaryColor": { "type": "string" },
+            "secondaryColor": { "type": "string" },
+            "backgroundColor": { "type": "string" },
+            "textColor": { "type": "string" },
+            "buttonColor": { "type": "string" },
+            "buttonTextColor": { "type": "string" }
+          }
+        },
+        "productIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "active": { "type": "boolean" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["slug", "name", "whatsappNumber", "ownerId"]
     }
   },
   "firestore": {
@@ -176,6 +208,7 @@
     "/deliveryLocations": { "schema": "deliveryLocations", "description": "Collection of delivery locations" },
     "/deliveryRuns": { "schema": "deliveryRuns", "description": "Collection of delivery runs" },
     "/motoboys": { "schema": "motoboys", "description": "Collection of motoboys" },
-    "/shoppingList": { "schema": "shoppingList", "description": "Collection of items to buy" }
+    "/shoppingList": { "schema": "shoppingList", "description": "Collection of items to buy" },
+    "/storefronts": { "schema": "storefronts", "description": "Collection of customizable storefronts" }
   }
 }

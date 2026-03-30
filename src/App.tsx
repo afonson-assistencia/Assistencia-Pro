@@ -25,6 +25,8 @@ import Expenses from './pages/Expenses';
 import CashClosure from './pages/CashClosure';
 import Settings from './pages/Settings';
 import ShoppingList from './pages/ShoppingList';
+import StorefrontManager from './pages/StorefrontManager';
+import PublicStorefront from './pages/PublicStorefront';
 import DeliveryManagement from './pages/DeliveryManagement';
 import MotoboyDashboard from './pages/MotoboyDashboard';
 import MotoboyLogin from './pages/MotoboyLogin';
@@ -145,6 +147,7 @@ export default function App() {
             <Routes>
               <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
               <Route path="/motoboy-login" element={!user ? <MotoboyLogin /> : <Navigate to="/" />} />
+              <Route path="/s/:slug" element={<PublicStorefront />} />
               <Route
                 path="/"
                 element={user ? <Layout /> : <Landing />}
@@ -158,6 +161,7 @@ export default function App() {
                 <Route path="expenses" element={user ? <Expenses /> : <Navigate to="/login" />} />
                 <Route path="cash-closure" element={user ? <CashClosure /> : <Navigate to="/login" />} />
                 <Route path="settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+                <Route path="storefront" element={user ? <StorefrontManager /> : <Navigate to="/login" />} />
                 <Route path="delivery-management" element={user ? <DeliveryManagement /> : <Navigate to="/login" />} />
                 <Route path="motoboy-dashboard" element={user ? <MotoboyDashboard /> : <Navigate to="/login" />} />
               </Route>
