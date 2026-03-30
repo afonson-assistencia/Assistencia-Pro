@@ -117,9 +117,41 @@ export default function PublicStorefront() {
   }, [slug]);
 
   useEffect(() => {
+    if (storefront && products.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const productId = urlParams.get('product');
+      if (productId) {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+          setSelectedProduct(product);
+        }
+      }
+    }
+  }, [storefront, products]);
+
+  useEffect(() => {
     if (selectedProduct) {
       window.scrollTo(0, 0);
     }
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedProduct(null);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [selectedProduct]);
 
   const handleWhatsApp = (product?: Product) => {
@@ -428,15 +460,21 @@ export default function PublicStorefront() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-0 sm:p-6"
+            onClick={() => setSelectedProduct(null)}
           >
             <motion.div 
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:flex-row max-h-[90vh]"
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-t-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:flex-row h-[95vh] sm:h-auto sm:max-h-[90vh]"
             >
-              <div className="w-full sm:w-1/2 aspect-square sm:aspect-auto bg-slate-100 dark:bg-slate-800 relative group/carousel">
+              {/* Mobile Drag Handle */}
+              <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full z-50"></div>
+
+              <div className="w-full sm:w-1/2 h-[35vh] sm:h-auto bg-slate-100 dark:bg-slate-800 relative group/carousel shrink-0">
                 {selectedProduct.imageUrls && selectedProduct.imageUrls.length > 0 ? (
                   <div className="relative w-full h-full overflow-hidden">
                     <AnimatePresence mode="wait">
@@ -444,9 +482,10 @@ export default function PublicStorefront() {
                         key={currentImageIndex}
                         src={selectedProduct.imageUrls[currentImageIndex]}
                         alt={`${selectedProduct.name} - ${currentImageIndex + 1}`}
-                        initial={{ opacity: 0, x: 50 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -50 }}
+                        initial={{ opacity: 0, scale: 1.1 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.3 }}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
@@ -459,25 +498,25 @@ export default function PublicStorefront() {
                             e.stopPropagation();
                             setCurrentImageIndex((prev) => (prev === 0 ? selectedProduct.imageUrls!.length - 1 : prev - 1));
                           }}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+                          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 backdrop-blur-xl rounded-full text-white border border-white/20 shadow-lg active:scale-90 transition-transform sm:opacity-0 sm:group-hover/carousel:opacity-100"
                         >
-                          <ChevronLeft className="h-5 w-5" />
+                          <ChevronLeft className="h-6 w-6" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setCurrentImageIndex((prev) => (prev === selectedProduct.imageUrls!.length - 1 ? 0 : prev + 1));
                           }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 backdrop-blur-xl rounded-full text-white border border-white/20 shadow-lg active:scale-90 transition-transform sm:opacity-0 sm:group-hover/carousel:opacity-100"
                         >
-                          <ChevronRight className="h-5 w-5" />
+                          <ChevronRight className="h-6 w-6" />
                         </button>
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
                           {selectedProduct.imageUrls.map((_, i) => (
                             <div
                               key={i}
-                              className={`w-1.5 h-1.5 rounded-full transition-all ${
-                                i === currentImageIndex ? 'bg-white w-4' : 'bg-white/40'
+                              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                                i === currentImageIndex ? 'bg-white w-6' : 'bg-white/40'
                               }`}
                             />
                           ))}
@@ -499,55 +538,88 @@ export default function PublicStorefront() {
                 )}
                 <button 
                   onClick={() => setSelectedProduct(null)}
-                  className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/40 transition-colors sm:hidden"
+                  className="absolute top-4 left-4 p-2 bg-black/20 backdrop-blur-md rounded-full text-white hover:bg-black/40 transition-colors sm:hidden z-50"
                 >
                   <ArrowLeft className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="w-full sm:w-1/2 p-8 flex flex-col justify-between space-y-8 overflow-y-auto">
-                <div className="space-y-6">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      {selectedProduct.category && (
-                        <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
-                          {selectedProduct.category}
-                        </span>
-                      )}
-                      <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
-                        {selectedProduct.name}
-                      </h2>
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 p-5 sm:p-10 overflow-y-auto custom-scrollbar">
+                  <div className="space-y-6 sm:space-y-8">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="space-y-1.5">
+                        {selectedProduct.category && (
+                          <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                            {selectedProduct.category}
+                          </span>
+                        )}
+                        <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight">
+                          {selectedProduct.name}
+                        </h2>
+                      </div>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const url = `${window.location.origin}/s/${slug}?product=${selectedProduct.id}`;
+                            if (navigator.share) {
+                              navigator.share({
+                                title: selectedProduct.name,
+                                text: selectedProduct.description,
+                                url: url,
+                              }).catch(console.error);
+                            } else {
+                              navigator.clipboard.writeText(url);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                            }
+                          }}
+                          className="p-2 sm:p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all"
+                          title="Compartilhar Produto"
+                        >
+                          {copied ? <Check className="h-4 sm:h-5 w-4 sm:w-5 text-green-500" /> : <Share2 className="h-4 sm:h-5 w-4 sm:w-5" />}
+                        </button>
+                        <button 
+                          onClick={() => setSelectedProduct(null)}
+                          className="hidden sm:flex p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all hover:rotate-90"
+                        >
+                          <X className="h-6 w-6" />
+                        </button>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => setSelectedProduct(null)}
-                      className="hidden sm:block p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors"
-                    >
-                      <X className="h-6 w-6" />
-                    </button>
+
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preço</span>
+                      <p className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white">
+                        R$ {selectedProduct.price.toFixed(2)}
+                      </p>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-6 sm:pt-8">
+                      {selectedProduct.description && renderDescription(selectedProduct.description)}
+                    </div>
                   </div>
-
-                  <p className="text-3xl font-black text-slate-900 dark:text-white">
-                    R$ {selectedProduct.price.toFixed(2)}
-                  </p>
-
-                  {selectedProduct.description && renderDescription(selectedProduct.description)}
                 </div>
 
-                <div className="space-y-3 pt-6">
-                  <button 
-                    onClick={() => handleWhatsApp(selectedProduct)}
-                    className="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
-                  >
-                    <MessageCircle className="h-5 w-5" />
-                    Tenho Interesse
-                  </button>
-                  <button 
-                    onClick={() => setSelectedProduct(null)}
-                    className="w-full py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    Voltar
-                  </button>
+                {/* Sticky Footer / CTA */}
+                <div className="p-5 sm:p-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 sm:bg-transparent sm:backdrop-blur-none sm:border-none">
+                  <div className="space-y-3 sm:space-y-4">
+                    <button 
+                      onClick={() => handleWhatsApp(selectedProduct)}
+                      className="w-full py-3.5 sm:py-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-3 shadow-2xl shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
+                      style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
+                    >
+                      <MessageCircle className="h-5 sm:h-6 w-5 sm:w-6" />
+                      Tenho Interesse
+                    </button>
+                    <button 
+                      onClick={() => setSelectedProduct(null)}
+                      className="w-full py-2.5 rounded-2xl font-bold text-xs text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors sm:hidden"
+                    >
+                      Fechar
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
