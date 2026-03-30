@@ -74,6 +74,7 @@ export interface Storefront {
   name: string;
   description: string;
   whatsappNumber: string;
+  logoUrl?: string;
   theme: StorefrontTheme;
   productIds: string[];
   active: boolean;

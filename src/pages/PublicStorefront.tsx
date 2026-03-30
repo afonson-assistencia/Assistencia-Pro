@@ -14,7 +14,9 @@ import {
   Loader2,
   ArrowLeft,
   Share2,
-  Check
+  Check,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -30,6 +32,7 @@ export default function PublicStorefront() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [copied, setCopied] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isStorefrontDescriptionExpanded, setIsStorefrontDescriptionExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const DEFAULT_THEME = {
@@ -111,6 +114,12 @@ export default function PublicStorefront() {
     fetchStorefront();
   }, [slug]);
 
+  useEffect(() => {
+    if (selectedProduct) {
+      window.scrollTo(0, 0);
+    }
+  }, [selectedProduct]);
+
   const handleWhatsApp = (product?: Product) => {
     if (!storefront?.whatsappNumber) return;
     
@@ -167,18 +176,27 @@ export default function PublicStorefront() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 bg-slate-50">
         <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-          <X className="h-10 w-10" />
+          <AlertCircle className="h-10 w-10" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">Ops!</h1>
-          <p className="text-slate-600 max-w-xs mx-auto">{error || 'Vitrine não encontrada.'}</p>
+          <p className="text-slate-600 max-w-xs mx-auto">{error || 'Não conseguimos encontrar a vitrine que você está procurando. Verifique o link e tente novamente.'}</p>
         </div>
-        <a href="/" className="btn btn-primary px-8">Voltar para o Início</a>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-primary w-full gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Tentar Novamente
+          </button>
+          <a href="/" className="btn btn-secondary w-full">
+            Voltar para o Início
+          </a>
+        </div>
       </div>
     );
   }
-
-  const [isStorefrontDescriptionExpanded, setIsStorefrontDescriptionExpanded] = useState(false);
 
   const storefrontPlaceholder = storefront || {
     name: 'Carregando...',
@@ -186,16 +204,19 @@ export default function PublicStorefront() {
     theme: DEFAULT_THEME
   };
 
-  const currentTheme = { ...DEFAULT_THEME, ...(storefront?.theme || {}) };
+  const currentTheme = { 
+    ...DEFAULT_THEME, 
+    ...(storefront?.theme || {}) 
+  };
 
   return (
     <div 
-      className="min-h-screen pb-24"
+      className="min-h-screen pb-24 transition-colors duration-500"
       style={{ backgroundColor: currentTheme.backgroundColor, color: currentTheme.textColor }}
     >
       {/* Header Section */}
       <header 
-        className="relative pt-12 pb-20 px-6 text-center space-y-6 overflow-hidden"
+        className="relative pt-12 pb-20 px-6 text-center space-y-6 overflow-hidden shadow-2xl"
         style={{ backgroundColor: currentTheme.primaryColor, color: '#ffffff' }}
       >
         {/* Decorative Background Elements */}
@@ -208,9 +229,13 @@ export default function PublicStorefront() {
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="mx-auto w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-2xl"
+            className="mx-auto w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden"
           >
-            <Package className="h-12 w-12" />
+            {storefront?.logoUrl ? (
+              <img src={storefront.logoUrl} alt={storefront.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <Package className="h-12 w-12" />
+            )}
           </motion.div>
 
           <div className="space-y-2">

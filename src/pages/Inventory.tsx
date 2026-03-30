@@ -3,7 +3,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, update
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Product, Category } from '../types';
-import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2, Palette } from 'lucide-react';
 import { useAuth } from '../App';
 
 export default function Inventory() {
@@ -14,9 +14,12 @@ export default function Inventory() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isQuickImageModalOpen, setIsQuickImageModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [selectedProductIdForImage, setSelectedProductIdForImage] = useState('');
+  const [quickImageUrl, setQuickImageUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
@@ -210,6 +213,36 @@ export default function Inventory() {
     }
   };
 
+  const handleQuickImageUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProductIdForImage || !quickImageUrl) return;
+    
+    setActionLoading(prev => ({ ...prev, quickImage: true }));
+    try {
+      const product = products.find(p => p.id === selectedProductIdForImage);
+      const currentUrls = product?.imageUrls || (product?.imageUrl ? [product.imageUrl] : []);
+      const newUrls = [...currentUrls];
+      if (newUrls.length === 0) newUrls.push(quickImageUrl);
+      else newUrls[0] = quickImageUrl;
+
+      await updateDoc(doc(db, 'products', selectedProductIdForImage), {
+        imageUrl: quickImageUrl,
+        imageUrls: newUrls,
+        updatedAt: serverTimestamp()
+      });
+      
+      setSuccess('Imagem atualizada com sucesso!');
+      setIsQuickImageModalOpen(false);
+      setQuickImageUrl('');
+      setSelectedProductIdForImage('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `products/${selectedProductIdForImage}`);
+      setError('Erro ao atualizar imagem.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, quickImage: false }));
+    }
+  };
+
   const handleDelete = async (id: string) => {
     setActionLoading(prev => ({ ...prev, [`deleteProduct_${id}`]: true }));
     try {
@@ -245,6 +278,10 @@ export default function Inventory() {
           <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie seus acessórios e peças.</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
+          <button onClick={() => setIsQuickImageModalOpen(true)} className="btn btn-secondary gap-2 flex-1 sm:flex-none">
+            <Palette className="h-4 w-4" />
+            <span>Imagem</span>
+          </button>
           <button onClick={() => setIsCategoryModalOpen(true)} className="btn btn-secondary gap-2 flex-1 sm:flex-none">
             <Settings2 className="h-4 w-4" />
             <span className="hidden sm:inline">Categorias</span>
@@ -829,6 +866,84 @@ export default function Inventory() {
                 Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Quick Image Upload */}
+      {isQuickImageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)]">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[var(--text-main)]">Adicionar Imagem via URL</h2>
+              <button onClick={() => setIsQuickImageModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleQuickImageUpdate} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Selecionar Produto</label>
+                <select 
+                  required
+                  className="input mt-1"
+                  value={selectedProductIdForImage}
+                  onChange={(e) => {
+                    setSelectedProductIdForImage(e.target.value);
+                    const product = products.find(p => p.id === e.target.value);
+                    setQuickImageUrl(product?.imageUrl || '');
+                  }}
+                >
+                  <option value="">Selecione um produto...</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (R$ {p.price.toFixed(2)})</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedProductIdForImage && (
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-[var(--border-color)] flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-[var(--border-color)]">
+                    {quickImageUrl ? (
+                      <img src={quickImageUrl} alt="Preview" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Package className="h-8 w-8 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-[var(--text-main)]">Preview da Imagem</p>
+                    <p className="text-[10px] text-[var(--text-muted)]">A imagem aparecerá aqui após colar a URL válida.</p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-medium text-[var(--text-muted)]">URL da Imagem</label>
+                <input 
+                  type="url"
+                  required
+                  className="input mt-1"
+                  placeholder="https://exemplo.com/imagem.jpg"
+                  value={quickImageUrl}
+                  onChange={(e) => setQuickImageUrl(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickImageModalOpen(false)}
+                  className="btn btn-secondary flex-1"
+                  disabled={actionLoading.quickImage}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" disabled={actionLoading.quickImage} className="btn btn-primary flex-1 gap-2">
+                  {actionLoading.quickImage && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {actionLoading.quickImage ? 'Salvando...' : 'Salvar Imagem'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

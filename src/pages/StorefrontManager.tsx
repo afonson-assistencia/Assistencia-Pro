@@ -52,6 +52,7 @@ export default function StorefrontManager() {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [theme, setTheme] = useState<StorefrontTheme>(DEFAULT_THEME);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,6 +102,7 @@ export default function StorefrontManager() {
     setSlug('');
     setDescription('');
     setWhatsappNumber('');
+    setLogoUrl('');
     setTheme(DEFAULT_THEME);
     setSelectedProductIds([]);
   };
@@ -112,6 +114,7 @@ export default function StorefrontManager() {
       setSlug(sf.slug);
       setDescription(sf.description || '');
       setWhatsappNumber(sf.whatsappNumber || '');
+      setLogoUrl(sf.logoUrl || '');
       setTheme(sf.theme || DEFAULT_THEME);
       setSelectedProductIds(sf.productIds || []);
     } else {
@@ -155,6 +158,7 @@ export default function StorefrontManager() {
         slug: slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
         description,
         whatsappNumber,
+        logoUrl,
         theme,
         productIds: selectedProductIds,
         active: true,
@@ -422,6 +426,16 @@ export default function StorefrontManager() {
                         Insira apenas números (Ex: 559887327719). Inclua o código do país (55) e o DDD.
                       </p>
                     </div>
+                    <div>
+                      <label className="text-sm font-medium text-[var(--text-muted)]">URL da Logo (Opcional)</label>
+                      <input 
+                        type="url" 
+                        className="input mt-1" 
+                        placeholder="https://exemplo.com/logo.png"
+                        value={logoUrl}
+                        onChange={(e) => setLogoUrl(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </section>
 
@@ -553,18 +567,37 @@ export default function StorefrontManager() {
                     style={{ backgroundColor: theme.backgroundColor, color: theme.textColor }}
                   >
                     {/* Header */}
-                    <div className="p-8 text-center space-y-4" style={{ backgroundColor: theme.primaryColor, color: '#ffffff' }}>
-                      <div className="mx-auto w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
-                        <Package className="h-10 w-10" />
+                    <div className="relative pt-12 pb-20 px-6 text-center space-y-6 overflow-hidden" style={{ backgroundColor: theme.primaryColor, color: '#ffffff' }}>
+                      {/* Decorative Background Elements */}
+                      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                        <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-white blur-3xl"></div>
+                        <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-white blur-3xl"></div>
                       </div>
-                      <h1 className="text-2xl font-bold">{name || 'Nome da Loja'}</h1>
-                      <div className="space-y-2">
-                        <p className={`text-sm opacity-80 whitespace-pre-wrap ${description.length > 150 ? 'line-clamp-3' : ''}`}>{description || 'Sua descrição aparecerá aqui.'}</p>
-                        {description && description.length > 150 && (
-                          <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1 mx-auto justify-center">
-                            Ver mais <ChevronRight className="h-3 w-3" />
-                          </div>
-                        )}
+
+                      <div className="relative z-10 space-y-6">
+                        <div className="mx-auto w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <Package className="h-10 w-10" />
+                          )}
+                        </div>
+                        <h1 className="text-2xl font-bold">{name || 'Nome da Loja'}</h1>
+                        <div className="space-y-2">
+                          <p className={`text-sm opacity-80 whitespace-pre-wrap ${description.length > 150 ? 'line-clamp-3' : ''}`}>{description || 'Sua descrição aparecerá aqui.'}</p>
+                          {description && description.length > 150 && (
+                            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1 mx-auto justify-center">
+                              Ver mais <ChevronRight className="h-3 w-3" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Wave Divider */}
+                      <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
+                        <svg className="relative block w-full h-[40px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C58.47,105.15,123.3,110.15,189.3,105.15c66-5,123.3-25.15,132.09-48.71Z" style={{ fill: theme.backgroundColor }}></path>
+                        </svg>
                       </div>
                     </div>
 
@@ -621,73 +654,6 @@ export default function StorefrontManager() {
                           <MessageCircle className="h-7 w-7" />
                         </div>
                       </div>
-                    )}
-                    {/* Selected Products Images */}
-                    {selectedProducts.length > 0 && (
-                      <section className="space-y-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-main)]">
-                          <Package className="h-4 w-4" />
-                          <span>Imagens dos Produtos Selecionados</span>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {selectedProducts.map(product => (
-                            <div key={product.id} className="flex flex-col gap-2 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-700">
-                                  {product.imageUrl ? (
-                                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    <Package className="h-5 w-5 text-slate-300" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold truncate">{product.name}</p>
-                                  <p className="text-[10px] text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</p>
-                                </div>
-                                <button 
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingProductId(product.id);
-                                    setEditingProductImageUrl(product.imageUrl || '');
-                                  }}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                >
-                                  <Palette className="h-4 w-4" />
-                                </button>
-                              </div>
-                              
-                              {editingProductId === product.id && (
-                                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                  <input 
-                                    type="url"
-                                    placeholder="URL da Imagem"
-                                    className="input text-xs"
-                                    value={editingProductImageUrl}
-                                    onChange={(e) => setEditingProductImageUrl(e.target.value)}
-                                  />
-                                  <div className="flex gap-2">
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleUpdateProductImage(product.id)}
-                                      disabled={actionLoading[`update_img_${product.id}`]}
-                                      className="btn btn-primary py-1.5 text-[10px] flex-1"
-                                    >
-                                      {actionLoading[`update_img_${product.id}`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Salvar'}
-                                    </button>
-                                    <button 
-                                      type="button"
-                                      onClick={() => setEditingProductId(null)}
-                                      className="btn btn-secondary py-1.5 text-[10px] flex-1"
-                                    >
-                                      Cancelar
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </section>
                     )}
                     {/* Selected Products Images */}
                     {selectedProducts.length > 0 && (
