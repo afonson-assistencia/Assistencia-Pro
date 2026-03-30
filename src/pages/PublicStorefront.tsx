@@ -41,22 +41,26 @@ export default function PublicStorefront() {
   };
 
   const renderDescription = (desc: string) => {
-    const maxLength = 100; // Lower threshold for "See More"
+    const maxLength = 120; // Adjusted threshold for "See More"
     const shouldTruncate = desc.length > maxLength && !isDescriptionExpanded;
     const content = shouldTruncate ? `${desc.substring(0, maxLength)}...` : desc;
     
     return (
       <div className="space-y-2">
         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Descrição</h4>
-        <div className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+        <div className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none break-words">
           <ReactMarkdown remarkPlugins={[remarkBreaks]}>{content}</ReactMarkdown>
         </div>
         {desc.length > maxLength && (
           <button 
-            onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-            className="text-xs font-bold text-blue-600 hover:underline mt-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDescriptionExpanded(!isDescriptionExpanded);
+            }}
+            className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors mt-1 flex items-center gap-1"
           >
             {isDescriptionExpanded ? 'Ver menos' : 'Ver mais'}
+            <ChevronRight className={`h-3 w-3 transition-transform ${isDescriptionExpanded ? 'rotate-90' : ''}`} />
           </button>
         )}
       </div>
@@ -144,6 +148,21 @@ export default function PublicStorefront() {
     p.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (loading && !storefront) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-4 bg-slate-50">
+        <div className="relative">
+          <div className="h-16 w-16 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
+          <Package className="absolute inset-0 m-auto h-6 w-6 text-slate-400 animate-pulse" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-slate-900 font-bold">Carregando Vitrine</p>
+          <p className="text-slate-500 text-sm">Preparando os melhores produtos para você...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error || (!loading && !storefront)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 bg-slate-50">
@@ -159,13 +178,15 @@ export default function PublicStorefront() {
     );
   }
 
+  const [isStorefrontDescriptionExpanded, setIsStorefrontDescriptionExpanded] = useState(false);
+
   const storefrontPlaceholder = storefront || {
     name: 'Carregando...',
     description: 'Buscando informações da vitrine...',
     theme: DEFAULT_THEME
   };
 
-  const currentTheme = storefront?.theme || DEFAULT_THEME;
+  const currentTheme = { ...DEFAULT_THEME, ...(storefront?.theme || {}) };
 
   return (
     <div 
@@ -201,14 +222,25 @@ export default function PublicStorefront() {
               {storefrontPlaceholder.name}
             </motion.h1>
             {storefrontPlaceholder.description && (
-              <motion.p 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
-                className="text-sm opacity-80 max-w-md mx-auto leading-relaxed whitespace-pre-wrap"
-              >
-                {storefrontPlaceholder.description}
-              </motion.p>
+              <div className="space-y-2">
+                <motion.p 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                  className={`text-sm opacity-80 max-w-md mx-auto leading-relaxed whitespace-pre-wrap ${!isStorefrontDescriptionExpanded ? 'line-clamp-3' : ''}`}
+                >
+                  {storefrontPlaceholder.description}
+                </motion.p>
+                {storefrontPlaceholder.description.length > 150 && (
+                  <button 
+                    onClick={() => setIsStorefrontDescriptionExpanded(!isStorefrontDescriptionExpanded)}
+                    className="text-[10px] font-bold uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1 mx-auto"
+                  >
+                    {isStorefrontDescriptionExpanded ? 'Ver menos' : 'Ver mais'}
+                    <ChevronRight className={`h-3 w-3 transition-transform ${isStorefrontDescriptionExpanded ? 'rotate-90' : ''}`} />
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -257,25 +289,25 @@ export default function PublicStorefront() {
       </div>
 
       {/* Products Grid */}
-      <main className="max-w-5xl mx-auto px-6 mt-12">
+      <main className="max-w-7xl mx-auto px-6 mt-12">
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-3xl p-4 space-y-4 animate-pulse border border-slate-100 dark:border-slate-700">
-                <div className="aspect-square bg-slate-100 dark:bg-slate-900 rounded-2xl"></div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-slate-800/50 rounded-3xl p-4 space-y-4 animate-pulse border border-slate-100 dark:border-slate-700/50">
+                <div className="aspect-square bg-slate-100 dark:bg-slate-900/50 rounded-2xl"></div>
                 <div className="space-y-2">
-                  <div className="h-4 bg-slate-100 dark:bg-slate-900 rounded w-3/4"></div>
-                  <div className="h-3 bg-slate-100 dark:bg-slate-900 rounded w-1/2"></div>
+                  <div className="h-4 bg-slate-100 dark:bg-slate-900/50 rounded w-3/4"></div>
+                  <div className="h-3 bg-slate-100 dark:bg-slate-900/50 rounded w-1/2"></div>
                 </div>
                 <div className="flex justify-between items-center pt-2">
-                  <div className="h-6 bg-slate-100 dark:bg-slate-900 rounded w-1/3"></div>
-                  <div className="h-8 w-8 bg-slate-100 dark:bg-slate-900 rounded-full"></div>
+                  <div className="h-6 bg-slate-100 dark:bg-slate-900/50 rounded w-1/3"></div>
+                  <div className="h-8 w-8 bg-slate-100 dark:bg-slate-900/50 rounded-full"></div>
                 </div>
               </div>
             ))}
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
             {filteredProducts.map((product, idx) => (
               <motion.div 
                 key={product.id}
@@ -285,6 +317,7 @@ export default function PublicStorefront() {
                 onClick={() => {
                   setSelectedProduct(product);
                   setCurrentImageIndex(0);
+                  setIsDescriptionExpanded(false);
                 }}
                 className="group bg-white dark:bg-slate-800 rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-100 dark:border-slate-700 overflow-hidden cursor-pointer flex flex-col"
               >
@@ -349,19 +382,20 @@ export default function PublicStorefront() {
       </main>
 
       {/* Floating WhatsApp Button */}
-      {storefront.whatsappNumber && (
+      {storefront?.whatsappNumber && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => handleWhatsApp()}
-          className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-emerald-500 text-white shadow-2xl flex items-center justify-center z-40 hover:bg-emerald-600 transition-colors"
+          className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-40 transition-colors"
+          style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
         >
           <MessageCircle className="h-8 w-8" />
           <span className="absolute -top-2 -right-2 flex h-5 w-5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-5 w-5 bg-emerald-500 border-2 border-white"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-5 w-5 border-2 border-white" style={{ backgroundColor: currentTheme.buttonColor }}></span>
           </span>
         </motion.button>
       )}
@@ -505,7 +539,7 @@ export default function PublicStorefront() {
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center justify-center gap-2 text-slate-400">
             <Package className="h-5 w-5" />
-            <span className="font-bold text-sm uppercase tracking-widest">{storefront.name}</span>
+            <span className="font-bold text-sm uppercase tracking-widest">{storefrontPlaceholder.name}</span>
           </div>
           <p className="text-xs text-slate-400">
             &copy; {new Date().getFullYear()} Todos os direitos reservados.

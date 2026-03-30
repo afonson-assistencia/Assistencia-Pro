@@ -14,6 +14,8 @@
       const manifestLink = document.getElementById('manifest-link');
       if (window.location.pathname.includes('motoboy')) {
         manifestLink.href = '/manifest-motoboy.json';
+      } else if (window.location.pathname.startsWith('/s/')) {
+        manifestLink.href = '/manifest.json';
       } else {
         manifestLink.href = '/manifest-admin.json';
       }
@@ -43,6 +45,7 @@
       (function() {
         // Configuration for loading screen
         const isMotoboy = window.location.pathname.includes('motoboy');
+        const isPublicStorefront = window.location.pathname.startsWith('/s/');
         const bg = document.getElementById('loading-bg');
         const spinner = document.getElementById('loading-spinner');
         const icon = document.getElementById('loading-icon');
@@ -63,6 +66,18 @@
           subtitle.style.color = '#a1a1aa';
           bar.style.backgroundColor = '#facc15';
           if (mLink) mLink.href = '/manifest-motoboy.json';
+        } else if (isPublicStorefront) {
+          // Public Storefront Theme (Clean/White)
+          bg.style.backgroundColor = '#f8fafc';
+          spinner.style.borderColor = '#3b82f6';
+          spinner.style.borderTopColor = 'transparent';
+          icon.src = '/logo.png';
+          title.innerText = 'Vitrine Digital';
+          title.style.color = '#0f172a';
+          subtitle.innerText = 'Buscando os melhores produtos...';
+          subtitle.style.color = '#64748b';
+          bar.style.backgroundColor = '#3b82f6';
+          if (mLink) mLink.href = '/manifest.json';
         } else {
           // Admin Theme (Blue/Slate)
           bg.style.backgroundColor = '#020617';

@@ -18,6 +18,7 @@ import {
   Copy, 
   Trash2, 
   Eye, 
+  ChevronRight,
   Globe,
   Settings2,
   Smartphone,
@@ -54,6 +55,8 @@ export default function StorefrontManager() {
   const [theme, setTheme] = useState<StorefrontTheme>(DEFAULT_THEME);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingProductImageUrl, setEditingProductImageUrl] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -114,7 +117,27 @@ export default function StorefrontManager() {
     } else {
       resetForm();
     }
+    setEditingProductId(null);
+    setEditingProductImageUrl('');
     setIsModalOpen(true);
+  };
+
+  const handleUpdateProductImage = async (productId: string) => {
+    if (!editingProductImageUrl) return;
+    setActionLoading(prev => ({ ...prev, [`update_img_${productId}`]: true }));
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        imageUrl: editingProductImageUrl,
+        updatedAt: serverTimestamp()
+      });
+      setSuccess('Imagem do produto atualizada!');
+      setEditingProductId(null);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `products/${productId}`);
+      setError('Erro ao atualizar imagem.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`update_img_${productId}`]: false }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -396,7 +419,7 @@ export default function StorefrontManager() {
                         />
                       </div>
                       <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                        Insira apenas números (Código do país + DDD + Número).
+                        Insira apenas números (Ex: 559887327719). Inclua o código do país (55) e o DDD.
                       </p>
                     </div>
                   </div>
@@ -535,7 +558,14 @@ export default function StorefrontManager() {
                         <Package className="h-10 w-10" />
                       </div>
                       <h1 className="text-2xl font-bold">{name || 'Nome da Loja'}</h1>
-                      <p className="text-sm opacity-80 whitespace-pre-wrap">{description || 'Sua descrição aparecerá aqui.'}</p>
+                      <div className="space-y-2">
+                        <p className={`text-sm opacity-80 whitespace-pre-wrap ${description.length > 150 ? 'line-clamp-3' : ''}`}>{description || 'Sua descrição aparecerá aqui.'}</p>
+                        {description && description.length > 150 && (
+                          <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1 mx-auto justify-center">
+                            Ver mais <ChevronRight className="h-3 w-3" />
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Search Mock */}
@@ -591,6 +621,140 @@ export default function StorefrontManager() {
                           <MessageCircle className="h-7 w-7" />
                         </div>
                       </div>
+                    )}
+                    {/* Selected Products Images */}
+                    {selectedProducts.length > 0 && (
+                      <section className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-main)]">
+                          <Package className="h-4 w-4" />
+                          <span>Imagens dos Produtos Selecionados</span>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {selectedProducts.map(product => (
+                            <div key={product.id} className="flex flex-col gap-2 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-700">
+                                  {product.imageUrl ? (
+                                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <Package className="h-5 w-5 text-slate-300" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold truncate">{product.name}</p>
+                                  <p className="text-[10px] text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</p>
+                                </div>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingProductId(product.id);
+                                    setEditingProductImageUrl(product.imageUrl || '');
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                >
+                                  <Palette className="h-4 w-4" />
+                                </button>
+                              </div>
+                              
+                              {editingProductId === product.id && (
+                                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                  <input 
+                                    type="url"
+                                    placeholder="URL da Imagem"
+                                    className="input text-xs"
+                                    value={editingProductImageUrl}
+                                    onChange={(e) => setEditingProductImageUrl(e.target.value)}
+                                  />
+                                  <div className="flex gap-2">
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleUpdateProductImage(product.id)}
+                                      disabled={actionLoading[`update_img_${product.id}`]}
+                                      className="btn btn-primary py-1.5 text-[10px] flex-1"
+                                    >
+                                      {actionLoading[`update_img_${product.id}`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Salvar'}
+                                    </button>
+                                    <button 
+                                      type="button"
+                                      onClick={() => setEditingProductId(null)}
+                                      className="btn btn-secondary py-1.5 text-[10px] flex-1"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {/* Selected Products Images */}
+                    {selectedProducts.length > 0 && (
+                      <section className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-main)]">
+                          <Package className="h-4 w-4" />
+                          <span>Imagens dos Produtos Selecionados</span>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {selectedProducts.map(product => (
+                            <div key={product.id} className="flex flex-col gap-2 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-700">
+                                  {product.imageUrl ? (
+                                    <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <Package className="h-5 w-5 text-slate-300" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold truncate">{product.name}</p>
+                                  <p className="text-[10px] text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</p>
+                                </div>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingProductId(product.id);
+                                    setEditingProductImageUrl(product.imageUrl || '');
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                >
+                                  <Palette className="h-4 w-4" />
+                                </button>
+                              </div>
+                              
+                              {editingProductId === product.id && (
+                                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                  <input 
+                                    type="url"
+                                    placeholder="URL da Imagem"
+                                    className="input text-xs"
+                                    value={editingProductImageUrl}
+                                    onChange={(e) => setEditingProductImageUrl(e.target.value)}
+                                  />
+                                  <div className="flex gap-2">
+                                    <button 
+                                      type="button"
+                                      onClick={() => handleUpdateProductImage(product.id)}
+                                      disabled={actionLoading[`update_img_${product.id}`]}
+                                      className="btn btn-primary py-1.5 text-[10px] flex-1"
+                                    >
+                                      {actionLoading[`update_img_${product.id}`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Salvar'}
+                                    </button>
+                                    <button 
+                                      type="button"
+                                      onClick={() => setEditingProductId(null)}
+                                      className="btn btn-secondary py-1.5 text-[10px] flex-1"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     )}
                   </div>
                 </div>
