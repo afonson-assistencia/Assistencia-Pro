@@ -24,15 +24,27 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(fields);
     }
 
+    // Validate theme object
+    function isValidTheme(theme) {
+      return theme is map &&
+             theme.primaryColor is string &&
+             theme.backgroundColor is string &&
+             theme.textColor is string &&
+             theme.buttonColor is string &&
+             theme.buttonTextColor is string;
+    }
+
     // Validate storefront data
     function isValidStorefront(data) {
-      return hasOnlyAllowedFields(['name', 'slug', 'description', 'whatsappNumber', 'theme', 'productIds', 'active', 'ownerId', 'createdAt', 'updatedAt']) &&
+      return hasOnlyAllowedFields(['name', 'slug', 'description', 'whatsappNumber', 'logoUrl', 'theme', 'productIds', 'active', 'ownerId', 'createdAt', 'updatedAt']) &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.slug is string && data.slug.size() > 0 && data.slug.size() < 50 &&
              (!('description' in data) || (data.description is string && data.description.size() < 1000)) &&
              (!('whatsappNumber' in data) || (data.whatsappNumber is string && data.whatsappNumber.size() < 20)) &&
+             (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 500)) &&
              data.active is bool &&
-             data.productIds is list;
+             data.productIds is list &&
+             isValidTheme(data.theme);
     }
 
     // ===============================================================

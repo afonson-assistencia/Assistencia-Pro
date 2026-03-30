@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, updateDoc, doc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useSettings } from '../contexts/SettingsContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Storefront, Product, StorefrontTheme } from '../types';
 import { useAuth } from '../App';
@@ -37,6 +38,7 @@ const DEFAULT_THEME: StorefrontTheme = {
 
 export default function StorefrontManager() {
   const { user, profile } = useAuth();
+  const { settings } = useSettings();
   const [storefronts, setStorefronts] = useState<Storefront[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +46,9 @@ export default function StorefrontManager() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [editingStorefront, setEditingStorefront] = useState<Storefront | null>(null);
-  const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
+  const [selectedProductForImage, setSelectedProductForImage] = useState<Product | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -343,390 +346,390 @@ export default function StorefrontManager() {
                 <h2 className="text-xl font-bold">{editingStorefront ? 'Editar Vitrine' : 'Nova Vitrine'}</h2>
               </div>
               <div className="flex items-center gap-3">
-                <div className="hidden sm:flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                  <button 
-                    onClick={() => setPreviewMode('mobile')}
-                    className={`p-2 rounded-md transition-colors ${previewMode === 'mobile' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'}`}
+                {editingStorefront && (
+                  <a 
+                    href={`/s/${editingStorefront.slug}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700"
                   >
-                    <Smartphone className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => setPreviewMode('desktop')}
-                    className={`p-2 rounded-md transition-colors ${previewMode === 'desktop' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500'}`}
-                  >
-                    <Monitor className="h-4 w-4" />
-                  </button>
-                </div>
+                    <ExternalLink className="h-4 w-4" />
+                    Visualizar Vitrine
+                  </a>
+                )}
                 <button 
                   onClick={handleSubmit} 
                   disabled={actionLoading.submit}
-                  className="btn btn-primary px-8"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2"
                 >
-                  {actionLoading.submit ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Vitrine'}
+                  {actionLoading.submit ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Salvar Alterações
+                    </>
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* Editor Sidebar */}
-              <div className="w-full lg:w-[450px] bg-[var(--bg-card)] border-r border-[var(--border-color)] overflow-y-auto p-6 space-y-8">
-                {/* Basic Info */}
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <Layout className="h-5 w-5" />
-                    <h3 className="font-bold">Informações Básicas</h3>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-[var(--text-muted)]">Nome da Vitrine</label>
-                      <input 
-                        type="text" 
-                        className="input mt-1" 
-                        placeholder="Ex: Minha Loja de Acessórios"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-[var(--text-muted)]">Link Personalizado (Slug)</label>
-                      <div className="flex items-center mt-1">
-                        <span className="bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-l-lg border border-r-0 border-[var(--border-color)] text-sm text-[var(--text-muted)]">/s/</span>
-                        <input 
-                          type="text" 
-                          className="input rounded-l-none" 
-                          placeholder="minha-loja"
-                          value={slug}
-                          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-[var(--text-muted)]">Descrição</label>
-                      <textarea 
-                        className="input mt-1 min-h-[80px]" 
-                        placeholder="Conte um pouco sobre sua loja..."
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-[var(--text-muted)]">WhatsApp para Contato</label>
-                      <div className="relative mt-1">
-                        <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600" />
-                        <input 
-                          type="text" 
-                          className="input pl-10" 
-                          placeholder="Ex: 559887327719"
-                          value={whatsappNumber}
-                          onChange={(e) => setWhatsappNumber(e.target.value)}
-                        />
-                      </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                        Insira apenas números (Ex: 559887327719). Inclua o código do país (55) e o DDD.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-[var(--text-muted)]">URL da Logo (Opcional)</label>
-                      <input 
-                        type="url" 
-                        className="input mt-1" 
-                        placeholder="https://exemplo.com/logo.png"
-                        value={logoUrl}
-                        onChange={(e) => setLogoUrl(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Theme Customization */}
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2 text-purple-600">
-                    <Palette className="h-5 w-5" />
-                    <h3 className="font-bold">Personalização de Cores</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-[var(--text-muted)]">Cor Principal</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
-                          className="h-10 w-10 rounded-lg cursor-pointer border-none"
-                          value={theme.primaryColor}
-                          onChange={(e) => setTheme({...theme, primaryColor: e.target.value})}
-                        />
-                        <input type="text" className="input text-xs h-10" value={theme.primaryColor} onChange={(e) => setTheme({...theme, primaryColor: e.target.value})} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-[var(--text-muted)]">Cor do Botão</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
-                          className="h-10 w-10 rounded-lg cursor-pointer border-none"
-                          value={theme.buttonColor}
-                          onChange={(e) => setTheme({...theme, buttonColor: e.target.value})}
-                        />
-                        <input type="text" className="input text-xs h-10" value={theme.buttonColor} onChange={(e) => setTheme({...theme, buttonColor: e.target.value})} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-[var(--text-muted)]">Fundo da Página</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
-                          className="h-10 w-10 rounded-lg cursor-pointer border-none"
-                          value={theme.backgroundColor}
-                          onChange={(e) => setTheme({...theme, backgroundColor: e.target.value})}
-                        />
-                        <input type="text" className="input text-xs h-10" value={theme.backgroundColor} onChange={(e) => setTheme({...theme, backgroundColor: e.target.value})} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-[var(--text-muted)]">Cor do Texto</label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input 
-                          type="color" 
-                          className="h-10 w-10 rounded-lg cursor-pointer border-none"
-                          value={theme.textColor}
-                          onChange={(e) => setTheme({...theme, textColor: e.target.value})}
-                        />
-                        <input type="text" className="input text-xs h-10" value={theme.textColor} onChange={(e) => setTheme({...theme, textColor: e.target.value})} />
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Product Selection */}
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-orange-600">
-                      <Package className="h-5 w-5" />
-                      <h3 className="font-bold">Produtos Selecionados</h3>
-                    </div>
-                    <span className="text-xs font-bold bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
-                      {selectedProductIds.length}
-                    </span>
-                  </div>
-                  
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-                    <input 
-                      type="text" 
-                      className="input pl-10 h-10 text-sm" 
-                      placeholder="Buscar produtos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {filteredProducts.map(product => (
-                      <button
-                        key={product.id}
-                        onClick={() => toggleProduct(product.id)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                          selectedProductIds.includes(product.id)
-                            ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-900/20'
-                            : 'border-[var(--border-color)] hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                        }`}
-                      >
-                        <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <Package className="h-6 w-6 text-slate-400" />
-                          )}
+            <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
+              <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-8">
+                <div className="grid lg:grid-cols-12 gap-8">
+                  {/* Left Column: Basic Info & Theme (7 cols) */}
+                  <div className="lg:col-span-7 space-y-8">
+                    <section className="card p-6 space-y-6">
+                      <div className="flex items-center gap-3 border-b border-[var(--border-color)] pb-4">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
+                          <Layout className="h-5 w-5" />
                         </div>
-                        <div className="flex-1 text-left min-w-0">
-                          <p className="text-sm font-bold truncate">{product.name}</p>
-                          <p className="text-xs text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</p>
-                        </div>
-                        {selectedProductIds.includes(product.id) && (
-                          <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              </div>
-
-              {/* Preview Area */}
-              <div className="flex-1 bg-slate-100 dark:bg-slate-900/50 p-4 sm:p-8 flex items-center justify-center overflow-hidden">
-                <div className={`bg-white shadow-2xl transition-all duration-500 overflow-hidden flex flex-col ${
-                  previewMode === 'mobile' ? 'w-[375px] h-[667px] rounded-[3rem] border-[8px] border-slate-800' : 'w-full h-full rounded-xl'
-                }`}>
-                  {/* Mock Browser/Phone Header */}
-                  <div className="bg-slate-800 p-2 flex justify-center">
-                    <div className="w-20 h-1 bg-slate-700 rounded-full"></div>
-                  </div>
-
-                  {/* Storefront Content Preview */}
-                  <div 
-                    className="flex-1 overflow-y-auto"
-                    style={{ backgroundColor: theme.backgroundColor, color: theme.textColor }}
-                  >
-                    {/* Header */}
-                    <div className="relative pt-12 pb-20 px-6 text-center space-y-6 overflow-hidden" style={{ backgroundColor: theme.primaryColor, color: '#ffffff' }}>
-                      {/* Decorative Background Elements */}
-                      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                        <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-white blur-3xl"></div>
-                        <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-white blur-3xl"></div>
-                      </div>
-
-                      <div className="relative z-10 space-y-6">
-                        <div className="mx-auto w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden">
-                          {logoUrl ? (
-                            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <Package className="h-10 w-10" />
-                          )}
-                        </div>
-                        <h1 className="text-2xl font-bold">{name || 'Nome da Loja'}</h1>
-                        <div className="space-y-2">
-                          <p className={`text-sm opacity-80 whitespace-pre-wrap ${description.length > 150 ? 'line-clamp-3' : ''}`}>{description || 'Sua descrição aparecerá aqui.'}</p>
-                          {description && description.length > 150 && (
-                            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 flex items-center gap-1 mx-auto justify-center">
-                              Ver mais <ChevronRight className="h-3 w-3" />
-                            </div>
-                          )}
+                        <div>
+                          <h3 className="font-bold text-lg">Informações da Vitrine</h3>
+                          <p className="text-xs text-[var(--text-muted)]">Configure os detalhes principais da sua página.</p>
                         </div>
                       </div>
+                      
+                      <div className="grid sm:grid-cols-2 gap-6">
+                        <div className="sm:col-span-2">
+                          <label className="text-sm font-semibold text-[var(--text-main)] mb-1.5 block">Nome da Vitrine</label>
+                          <input 
+                            type="text" 
+                            className="input" 
+                            placeholder="Ex: Minha Loja de Acessórios"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-semibold text-[var(--text-main)] mb-1.5 block">Link Personalizado</label>
+                          <div className="flex items-center">
+                            <span className="bg-slate-100 dark:bg-slate-800 px-3 py-2.5 rounded-l-xl border border-r-0 border-[var(--border-color)] text-sm text-[var(--text-muted)] font-medium">/s/</span>
+                            <input 
+                              type="text" 
+                              className="input rounded-l-none" 
+                              placeholder="minha-loja"
+                              value={slug}
+                              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                            />
+                          </div>
+                        </div>
 
-                      {/* Wave Divider */}
-                      <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
-                        <svg className="relative block w-full h-[40px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-                          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C58.47,105.15,123.3,110.15,189.3,105.15c66-5,123.3-25.15,132.09-48.71Z" style={{ fill: theme.backgroundColor }}></path>
-                        </svg>
-                      </div>
-                    </div>
+                        <div>
+                          <label className="text-sm font-semibold text-[var(--text-main)] mb-1.5 block">WhatsApp</label>
+                          <div className="relative">
+                            <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600" />
+                            <input 
+                              type="text" 
+                              className="input pl-10" 
+                              placeholder="Ex: 559887327719"
+                              value={whatsappNumber}
+                              onChange={(e) => setWhatsappNumber(e.target.value)}
+                            />
+                          </div>
+                        </div>
 
-                    {/* Search Mock */}
-                    <div className="p-4 sticky top-0 z-10" style={{ backgroundColor: theme.backgroundColor }}>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                        <input 
-                          disabled
-                          type="text" 
-                          className="w-full pl-10 pr-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 bg-white/50 text-sm"
-                          placeholder="Buscar produtos..."
-                        />
-                      </div>
-                    </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-sm font-semibold text-[var(--text-main)] mb-1.5 block">Descrição da Vitrine</label>
+                          <textarea 
+                            className="input min-h-[100px] py-3" 
+                            placeholder="Conte um pouco sobre sua loja, promoções ou informações importantes..."
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                          />
+                        </div>
 
-                    {/* Products Grid */}
-                    <div className="p-4 grid grid-cols-2 gap-4">
-                      {selectedProducts.length > 0 ? (
-                        selectedProducts.map(p => (
-                          <div key={p.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden border border-slate-100 dark:border-slate-700">
-                            <div className="aspect-square bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-                              {p.imageUrl ? (
-                                <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        <div className="sm:col-span-2">
+                          <label className="text-sm font-semibold text-[var(--text-main)] mb-1.5 block flex items-center justify-between">
+                            <span>URL da Logo (Opcional)</span>
+                            <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Cole o link da sua logo aqui</span>
+                          </label>
+                          <div className="flex gap-3">
+                            <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-[var(--border-color)]">
+                              {logoUrl || settings.logoUrl ? (
+                                <img src={logoUrl || settings.logoUrl} alt="Logo Preview" className="h-full w-full object-contain p-1" referrerPolicy="no-referrer" />
                               ) : (
-                                <Package className="h-8 w-8 text-slate-300" />
+                                <div className="text-slate-400 font-black text-xl">{name?.charAt(0).toUpperCase() || settings.name?.charAt(0).toUpperCase() || 'V'}</div>
                               )}
                             </div>
-                            <div className="p-3 space-y-1">
-                              <h4 className="text-sm font-bold truncate">{p.name}</h4>
-                              <p className="text-xs opacity-60">R$ {p.price.toFixed(2)}</p>
-                              <button 
-                                disabled
-                                className="w-full mt-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider"
-                                style={{ backgroundColor: theme.buttonColor, color: theme.buttonTextColor }}
-                              >
-                                Comprar
-                              </button>
-                            </div>
+                            <input 
+                              type="url" 
+                              className="input flex-1" 
+                              placeholder="https://exemplo.com/logo.png"
+                              value={logoUrl}
+                              onChange={(e) => setLogoUrl(e.target.value)}
+                            />
                           </div>
-                        ))
-                      ) : (
-                        <div className="col-span-full py-12 text-center opacity-40">
-                          <Package className="h-12 w-12 mx-auto mb-2" />
-                          <p className="text-sm">Selecione produtos para ver aqui</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* WhatsApp Button Mock */}
-                    {whatsappNumber && (
-                      <div className="fixed bottom-8 right-8">
-                        <div className="w-14 h-14 rounded-full bg-emerald-500 shadow-lg flex items-center justify-center text-white">
-                          <MessageCircle className="h-7 w-7" />
                         </div>
                       </div>
-                    )}
-                    {/* Selected Products Images */}
-                    {selectedProducts.length > 0 && (
-                      <section className="space-y-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-main)]">
-                          <Package className="h-4 w-4" />
-                          <span>Imagens dos Produtos Selecionados</span>
+                    </section>
+
+                    <section className="card p-6 space-y-6">
+                      <div className="flex items-center gap-3 border-b border-[var(--border-color)] pb-4">
+                        <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600">
+                          <Palette className="h-5 w-5" />
                         </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {selectedProducts.map(product => (
-                            <div key={product.id} className="flex flex-col gap-2 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-700">
+                        <div>
+                          <h3 className="font-bold text-lg">Identidade Visual</h3>
+                          <p className="text-xs text-[var(--text-muted)]">Personalize as cores para combinar com sua marca.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-[var(--text-muted)]">Cor Principal</label>
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="color" 
+                              className="h-12 w-12 rounded-xl cursor-pointer border-2 border-white dark:border-slate-700 shadow-sm"
+                              value={theme.primaryColor}
+                              onChange={(e) => setTheme({...theme, primaryColor: e.target.value})}
+                            />
+                            <input type="text" className="input text-sm h-12 font-mono uppercase" value={theme.primaryColor} onChange={(e) => setTheme({...theme, primaryColor: e.target.value})} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-[var(--text-muted)]">Cor dos Botões</label>
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="color" 
+                              className="h-12 w-12 rounded-xl cursor-pointer border-2 border-white dark:border-slate-700 shadow-sm"
+                              value={theme.buttonColor}
+                              onChange={(e) => setTheme({...theme, buttonColor: e.target.value})}
+                            />
+                            <input type="text" className="input text-sm h-12 font-mono uppercase" value={theme.buttonColor} onChange={(e) => setTheme({...theme, buttonColor: e.target.value})} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-[var(--text-muted)]">Fundo da Página</label>
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="color" 
+                              className="h-12 w-12 rounded-xl cursor-pointer border-2 border-white dark:border-slate-700 shadow-sm"
+                              value={theme.backgroundColor}
+                              onChange={(e) => setTheme({...theme, backgroundColor: e.target.value})}
+                            />
+                            <input type="text" className="input text-sm h-12 font-mono uppercase" value={theme.backgroundColor} onChange={(e) => setTheme({...theme, backgroundColor: e.target.value})} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-[var(--text-muted)]">Cor do Texto</label>
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="color" 
+                              className="h-12 w-12 rounded-xl cursor-pointer border-2 border-white dark:border-slate-700 shadow-sm"
+                              value={theme.textColor}
+                              onChange={(e) => setTheme({...theme, textColor: e.target.value})}
+                            />
+                            <input type="text" className="input text-sm h-12 font-mono uppercase" value={theme.textColor} onChange={(e) => setTheme({...theme, textColor: e.target.value})} />
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* Right Column: Product Selection (5 cols) */}
+                  <div className="lg:col-span-5 space-y-8">
+                    <section className="card p-6 flex flex-col min-h-[600px] lg:h-[calc(100vh-200px)]">
+                      <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-4 mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-600">
+                            <Package className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg">Catálogo de Produtos</h3>
+                            <p className="text-xs text-[var(--text-muted)]">Selecione os itens para esta vitrine.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold bg-blue-100 text-blue-600 px-3 py-1.5 rounded-full shadow-sm">
+                            {selectedProductIds.length} selecionados
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="relative mb-4">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+                        <input 
+                          type="text" 
+                          className="input pl-10 h-11 text-sm bg-slate-50 dark:bg-slate-800/50 border-none" 
+                          placeholder="Buscar por nome ou categoria..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                        {filteredProducts.map(product => {
+                          const isSelected = selectedProductIds.includes(product.id);
+                          return (
+                            <div
+                              key={product.id}
+                              className={`group relative flex items-center gap-4 p-3 rounded-2xl border transition-all duration-200 ${
+                                isSelected
+                                  ? 'border-blue-600 bg-blue-50/30 dark:bg-blue-900/10 shadow-sm'
+                                  : 'border-[var(--border-color)] hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800/50'
+                              }`}
+                            >
+                              <div 
+                                onClick={() => toggleProduct(product.id)}
+                                className="flex-1 flex items-center gap-4 cursor-pointer min-w-0"
+                              >
+                                <div className="h-14 w-14 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm">
                                   {product.imageUrl ? (
                                     <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                   ) : (
-                                    <Package className="h-5 w-5 text-slate-300" />
+                                    <Package className="h-7 w-7 text-slate-300" />
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold truncate">{product.name}</p>
-                                  <p className="text-[10px] text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</p>
+                                  <p className="text-sm font-bold text-[var(--text-main)] truncate">{product.name}</p>
+                                  <p className="text-xs font-medium text-blue-600 dark:text-blue-400">R$ {product.price.toFixed(2)}</p>
+                                  {product.category && (
+                                    <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">{product.category}</span>
+                                  )}
                                 </div>
-                                <button 
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingProductId(product.id);
-                                    setEditingProductImageUrl(product.imageUrl || '');
-                                  }}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                >
-                                  <Palette className="h-4 w-4" />
-                                </button>
+                                {isSelected && (
+                                  <div className="bg-blue-600 rounded-full p-1 shadow-lg shadow-blue-600/20">
+                                    <CheckCircle2 className="h-4 w-4 text-white" />
+                                  </div>
+                                )}
                               </div>
                               
-                              {editingProductId === product.id && (
-                                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                  <input 
-                                    type="url"
-                                    placeholder="URL da Imagem"
-                                    className="input text-xs"
-                                    value={editingProductImageUrl}
-                                    onChange={(e) => setEditingProductImageUrl(e.target.value)}
-                                  />
-                                  <div className="flex gap-2">
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleUpdateProductImage(product.id)}
-                                      disabled={actionLoading[`update_img_${product.id}`]}
-                                      className="btn btn-primary py-1.5 text-[10px] flex-1"
-                                    >
-                                      {actionLoading[`update_img_${product.id}`] ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Salvar'}
-                                    </button>
-                                    <button 
-                                      type="button"
-                                      onClick={() => setEditingProductId(null)}
-                                      className="btn btn-secondary py-1.5 text-[10px] flex-1"
-                                    >
-                                      Cancelar
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+                              {/* Manage Image Button - More Professional */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedProductForImage(product);
+                                  setEditingProductImageUrl(product.imageUrl || '');
+                                  setIsImageModalOpen(true);
+                                }}
+                                className={`p-2.5 rounded-xl transition-all ${
+                                  isSelected 
+                                    ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm hover:bg-blue-600 hover:text-white' 
+                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                }`}
+                                title="Adicionar/Editar Imagem"
+                              >
+                                <Palette className="h-4.5 w-4.5" />
+                              </button>
                             </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
+                          );
+                        })}
+                        
+                        {filteredProducts.length === 0 && (
+                          <div className="py-12 text-center space-y-3">
+                            <div className="mx-auto w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                              <Search className="h-6 w-6" />
+                            </div>
+                            <p className="text-sm text-[var(--text-muted)]">Nenhum produto encontrado.</p>
+                          </div>
+                        )}
+                      </div>
+                    </section>
                   </div>
                 </div>
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Product Image Modal */}
+      <AnimatePresence>
+        {isImageModalOpen && selectedProductForImage && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-white/10"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-600/20">
+                    <Palette className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Gerenciar Imagem</h3>
+                    <p className="text-xs text-slate-500">Adicione uma URL para a imagem do produto.</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsImageModalOpen(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="flex items-center gap-5 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                  <div className="h-24 w-24 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner">
+                    {editingProductImageUrl ? (
+                      <img src={editingProductImageUrl} alt="Preview" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Package className="h-10 w-10 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-lg font-bold text-slate-900 dark:text-white truncate">{selectedProductForImage.name}</p>
+                    <p className="text-blue-600 dark:text-blue-400 font-semibold">R$ {selectedProductForImage.price.toFixed(2)}</p>
+                    {selectedProductForImage.category && (
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                        {selectedProductForImage.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">URL da Imagem</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input 
+                      type="url" 
+                      className="input pl-10 h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20" 
+                      placeholder="https://exemplo.com/imagem-do-produto.jpg"
+                      value={editingProductImageUrl}
+                      onChange={(e) => setEditingProductImageUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex gap-3">
+                    <div className="p-1 bg-blue-100 dark:bg-blue-800 rounded text-blue-600 dark:text-blue-400 h-fit">
+                      <Settings2 className="h-3 w-3" />
+                    </div>
+                    <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                      Dica: Use links diretos de imagens (terminando em .jpg, .png ou .webp). Você pode hospedar suas imagens em serviços como Imgur ou PostImages.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+                <button 
+                  onClick={() => setIsImageModalOpen(false)}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={async () => {
+                    await handleUpdateProductImage(selectedProductForImage.id);
+                    setIsImageModalOpen(false);
+                  }}
+                  disabled={actionLoading[`update_img_${selectedProductForImage.id}`]}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
+                >
+                  {actionLoading[`update_img_${selectedProductForImage.id}`] ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5" />
+                      Salvar Imagem
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

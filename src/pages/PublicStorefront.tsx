@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useSettings } from '../contexts/SettingsContext';
 import { Storefront, Product } from '../types';
 import { 
   Search, 
@@ -24,6 +25,7 @@ import remarkBreaks from 'remark-breaks';
 
 export default function PublicStorefront() {
   const { slug } = useParams<{ slug: string }>();
+  const { settings } = useSettings();
   const [storefront, setStorefront] = useState<Storefront | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,21 +159,6 @@ export default function PublicStorefront() {
     p.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading && !storefront) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-4 bg-slate-50">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
-          <Package className="absolute inset-0 m-auto h-6 w-6 text-slate-400 animate-pulse" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-slate-900 font-bold">Carregando Vitrine</p>
-          <p className="text-slate-500 text-sm">Preparando os melhores produtos para você...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (error || (!loading && !storefront)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 bg-slate-50">
@@ -199,8 +186,8 @@ export default function PublicStorefront() {
   }
 
   const storefrontPlaceholder = storefront || {
-    name: 'Carregando...',
-    description: 'Buscando informações da vitrine...',
+    name: '',
+    description: '',
     theme: DEFAULT_THEME
   };
 
@@ -231,10 +218,12 @@ export default function PublicStorefront() {
             animate={{ scale: 1, opacity: 1 }}
             className="mx-auto w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden"
           >
-            {storefront?.logoUrl ? (
-              <img src={storefront.logoUrl} alt={storefront.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            {storefront?.logoUrl || settings.logoUrl ? (
+              <img src={storefront?.logoUrl || settings.logoUrl} alt={storefront?.name || settings.name} className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
             ) : (
-              <Package className="h-12 w-12" />
+              <div className="flex flex-col items-center justify-center text-white/40">
+                <span className="text-4xl font-black">{storefront?.name?.charAt(0).toUpperCase() || settings.name?.charAt(0).toUpperCase() || 'V'}</span>
+              </div>
             )}
           </motion.div>
 
@@ -252,7 +241,7 @@ export default function PublicStorefront() {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.1 }}
-                  className={`text-sm opacity-80 max-w-md mx-auto leading-relaxed whitespace-pre-wrap ${!isStorefrontDescriptionExpanded ? 'line-clamp-3' : ''}`}
+                  className={`text-sm opacity-80 max-w-md mx-auto leading-relaxed whitespace-pre-wrap text-start ${!isStorefrontDescriptionExpanded ? 'line-clamp-3' : ''}`}
                 >
                   {storefrontPlaceholder.description}
                 </motion.p>
@@ -388,20 +377,27 @@ export default function PublicStorefront() {
             ))}
           </div>
         ) : (
-          <div className="py-20 text-center space-y-4">
-            <div className="mx-auto w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-              <Search className="h-10 w-10" />
+          <div className="py-20 text-center space-y-6 max-w-md mx-auto">
+            <div className="mx-auto w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 relative">
+              <Package className="h-10 w-10" />
+              <Search className="h-6 w-6 absolute bottom-2 right-2 text-slate-300" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Nenhum produto encontrado</h3>
-              <p className="text-slate-500">Tente buscar por outro termo ou limpe os filtros.</p>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Nenhum produto por aqui</h3>
+              <p className="text-slate-500 leading-relaxed">
+                {searchTerm 
+                  ? `Não encontramos nada para "${searchTerm}". Tente buscar por outro termo.`
+                  : "Esta vitrine ainda não possui produtos selecionados. Volte em breve para conferir as novidades!"}
+              </p>
             </div>
-            <button 
-              onClick={() => setSearchTerm('')}
-              className="text-blue-600 font-bold hover:underline"
-            >
-              Limpar busca
-            </button>
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="btn btn-secondary px-8"
+              >
+                Limpar busca
+              </button>
+            )}
           </div>
         )}
       </main>
