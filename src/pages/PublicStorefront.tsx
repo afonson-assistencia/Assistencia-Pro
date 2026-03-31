@@ -17,11 +17,21 @@ import {
   Share2,
   Check,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingBag,
+  Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
+import { toast, Toaster } from 'sonner';
+
+interface CartItem extends Product {
+  quantity: number;
+}
 
 export default function PublicStorefront() {
   const { slug } = useParams<{ slug: string }>();
@@ -36,6 +46,67 @@ export default function PublicStorefront() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isStorefrontDescriptionExpanded, setIsStorefrontDescriptionExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Load cart from localStorage
+  useEffect(() => {
+    const savedCart = localStorage.getItem(`cart_${slug}`);
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error('Error parsing cart:', e);
+      }
+    }
+  }, [slug]);
+
+  // Save cart to localStorage
+  useEffect(() => {
+    if (slug) {
+      localStorage.setItem(`cart_${slug}`, JSON.stringify(cart));
+    }
+  }, [cart, slug]);
+
+  const addToCart = (product: Product) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        toast.success(`Mais um ${product.name} adicionado!`);
+        return prev.map(item => 
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      toast.success(`${product.name} adicionado ao carrinho!`);
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart(prev => prev.filter(item => item.id !== productId));
+    toast.error('Produto removido do carrinho');
+  };
+
+  const updateQuantity = (productId: string, delta: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === productId) {
+        const newQty = Math.max(1, item.quantity + delta);
+        return { ...item, quantity: newQty };
+      }
+      return item;
+    }));
+  };
+
+  const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  const copyStorefrontLink = () => {
+    const url = window.location.href.split('?')[0];
+    navigator.clipboard.writeText(url);
+    toast.success('Link da vitrine copiado!', {
+      description: 'Agora você pode compartilhar com seus clientes.'
+    });
+  };
 
   const DEFAULT_THEME = {
     primaryColor: '#0f172a',
@@ -160,11 +231,19 @@ export default function PublicStorefront() {
     // Sanitize number: remove non-digits
     const sanitizedNumber = storefront.whatsappNumber.replace(/\D/g, '');
     
-    let message = `Olá! Vi sua vitrine "${storefront.name}" e gostaria de mais informações.`;
+    let message = '';
     if (product) {
-      message = `Olá! Tenho interesse no produto: *${product.name}* (R$ ${product.price.toFixed(2)}) que vi na sua vitrine "${storefront.name}".`;
+      message = `Olá! Vi seu produto na vitrine "${storefront.name}" e tenho interesse:\n\n*${product.name}*\nPreço: R$ ${product.price.toFixed(2)}\nLink: ${window.location.origin}/s/${slug}?product=${product.id}`;
+    } else if (cart.length > 0) {
+      message = `Olá! Gostaria de fazer um pedido na sua vitrine "${storefront.name}":\n\n`;
+      cart.forEach(item => {
+        message += `• ${item.quantity}x *${item.name}* - R$ ${(item.price * item.quantity).toFixed(2)}\n`;
+      });
+      message += `\n*Total: R$ ${cartTotal.toFixed(2)}*`;
+    } else {
+      message = `Olá! Vi sua vitrine "${storefront.name}" e gostaria de saber mais sobre seus produtos.`;
     }
-    
+
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${sanitizedNumber}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
@@ -233,7 +312,174 @@ export default function PublicStorefront() {
       className="min-h-screen pb-24 transition-colors duration-500"
       style={{ backgroundColor: currentTheme.backgroundColor, color: currentTheme.textColor }}
     >
-      {/* Header Section */}
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-b border-black/5 dark:border-white/5">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border border-black/5 dark:border-white/5">
+              {storefront?.logoUrl || settings.logoUrl ? (
+                <img src={storefront?.logoUrl || settings.logoUrl} alt={storefront?.name || settings.name} className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-sm font-black text-slate-400">{storefront?.name?.charAt(0).toUpperCase() || settings.name?.charAt(0).toUpperCase() || 'V'}</span>
+              )}
+            </div>
+            <h1 className="font-black text-sm text-slate-900 dark:text-white tracking-tight truncate max-w-[150px] sm:max-w-none">{storefrontPlaceholder.name}</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={copyStorefrontLink}
+              className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-all active:scale-90"
+              title="Copiar Link"
+            >
+              <Copy className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white shadow-lg shadow-blue-500/20 transition-all active:scale-90"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Shopping Cart Sidebar */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col"
+            >
+              <div className="p-6 border-b border-black/5 dark:border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-blue-600">
+                    <ShoppingBag className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Meu Carrinho</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cartCount} itens selecionados</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsCartOpen(false)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center">
+                      <ShoppingCart className="h-10 w-10 text-slate-300" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-bold text-slate-900 dark:text-white">Seu carrinho está vazio</p>
+                      <p className="text-sm text-slate-400">Adicione produtos para fazer seu pedido.</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsCartOpen(false)}
+                      className="btn btn-primary px-8"
+                    >
+                      Continuar Comprando
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cart.map((item) => (
+                      <motion.div 
+                        layout
+                        key={item.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-black/5 dark:border-white/5"
+                      >
+                        <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-800 overflow-hidden shrink-0 border border-black/5 dark:border-white/5">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300">
+                              <Package className="h-8 w-8" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 flex flex-col justify-between py-1">
+                          <div>
+                            <h4 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">{item.name}</h4>
+                            <p className="text-xs font-black text-blue-600">R$ {item.price.toFixed(2)}</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-full p-1 border border-black/5 dark:border-white/5">
+                              <button 
+                                onClick={() => updateQuantity(item.id, -1)}
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                              <button 
+                                onClick={() => updateQuantity(item.id, 1)}
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <button 
+                              onClick={() => removeFromCart(item.id)}
+                              className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {cart.length > 0 && (
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-black/5 dark:border-white/5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Subtotal</span>
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {cartTotal.toFixed(2)}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleWhatsApp()}
+                    className="w-full py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
+                    style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
+                  >
+                    <MessageCircle className="h-6 w-6" />
+                    Finalizar no WhatsApp
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <Toaster position="top-center" richColors />
+
+      {/* Hero Section */}
       <header 
         className="relative pt-12 pb-20 px-6 text-center space-y-6 overflow-hidden shadow-2xl"
         style={{ backgroundColor: currentTheme.primaryColor, color: '#ffffff' }}
@@ -382,27 +628,35 @@ export default function PublicStorefront() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
-                      {product.name}
-                    </h3>
+                <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between gap-2">
+                  <div className="space-y-1">
                     {product.category && (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md">
                         {product.category}
                       </span>
                     )}
+                    <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                      {product.name}
+                    </h3>
                   </div>
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="font-black text-lg text-slate-900 dark:text-white">
-                      R$ {product.price.toFixed(2)}
-                    </p>
-                    <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center transition-all group-hover:scale-110"
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">A partir de</span>
+                      <p className="font-black text-base sm:text-xl text-slate-900 dark:text-white tracking-tight">
+                        <span className="text-xs sm:text-sm mr-0.5">R$</span>
+                        {product.price.toFixed(2)}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart(product);
+                      }}
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-lg shadow-blue-500/20"
                       style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
                     >
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
+                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -469,12 +723,12 @@ export default function PublicStorefront() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-4xl bg-white dark:bg-slate-900  overflow-hidden shadow-2xl flex flex-col sm:flex-row h-full"
+              className="w-full max-w-4xl bg-white dark:bg-slate-900 overflow-hidden shadow-2xl flex flex-col sm:flex-row h-[90vh] sm:h-auto sm:max-h-[90vh] rounded-t-[2rem] sm:rounded-[2rem]"
             >
               {/* Mobile Drag Handle */}
-              <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full z-50"></div>
+              <div className="sm:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full z-50"></div>
 
-              <div className="w-full sm:w-1/2 h-[35vh] sm:h-auto bg-slate-100 dark:bg-slate-800 relative group/carousel shrink-0">
+              <div className="w-full sm:w-1/2 h-[40vh] sm:h-auto bg-slate-50 dark:bg-slate-900/50 relative group/carousel shrink-0 border-b sm:border-b-0 sm:border-r border-slate-100 dark:border-slate-800">
                 {selectedProduct.imageUrls && selectedProduct.imageUrls.length > 0 ? (
                   <div className="relative w-full h-full overflow-hidden">
                     <AnimatePresence mode="wait">
@@ -545,20 +799,20 @@ export default function PublicStorefront() {
               </div>
 
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 p-5 sm:p-10 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 p-6 sm:p-10 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6 sm:space-y-8">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="space-y-1.5">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="space-y-2">
                         {selectedProduct.category && (
-                          <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                          <span className="inline-block px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
                             {selectedProduct.category}
                           </span>
                         )}
-                        <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight">
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight">
                           {selectedProduct.name}
                         </h2>
                       </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="flex items-center gap-2">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -571,54 +825,63 @@ export default function PublicStorefront() {
                               }).catch(console.error);
                             } else {
                               navigator.clipboard.writeText(url);
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 2000);
+                              toast.success('Link do produto copiado!', {
+                                description: 'Agora você pode compartilhar este produto.'
+                              });
                             }
                           }}
-                          className="p-2 sm:p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all"
+                          className="p-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-all active:scale-90"
                           title="Compartilhar Produto"
                         >
-                          {copied ? <Check className="h-4 sm:h-5 w-4 sm:w-5 text-green-500" /> : <Share2 className="h-4 sm:h-5 w-4 sm:w-5" />}
+                          <Share2 className="h-5 w-5" />
                         </button>
                         <button 
                           onClick={() => setSelectedProduct(null)}
-                          className="hidden sm:flex p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all hover:rotate-90"
+                          className="hidden sm:flex p-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-all hover:rotate-90"
                         >
                           <X className="h-6 w-6" />
                         </button>
                       </div>
                     </div>
 
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preço</span>
-                      <p className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white">
-                        R$ {selectedProduct.price.toFixed(2)}
-                      </p>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Preço à vista</span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-base font-bold text-slate-900 dark:text-white">R$</span>
+                        <p className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                          {selectedProduct.price.toFixed(2)}
+                        </p>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium">No PIX ou em até 12x no cartão</p>
                     </div>
 
-                    <div className="border-t border-slate-100 dark:border-slate-800 pt-6 sm:pt-8">
+                    <div className="space-y-4">
+                      <div className="h-px bg-slate-100 dark:bg-slate-800 w-full"></div>
                       {selectedProduct.description && renderDescription(selectedProduct.description)}
                     </div>
                   </div>
                 </div>
 
                 {/* Sticky Footer / CTA */}
-                <div className="p-5 sm:p-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 sm:bg-transparent sm:backdrop-blur-none sm:border-none">
-                  <div className="space-y-3 sm:space-y-4">
-                    <button 
-                      onClick={() => handleWhatsApp(selectedProduct)}
-                      className="w-full py-3.5 sm:py-5 rounded-2xl font-black text-sm sm:text-lg flex items-center justify-center gap-3 shadow-2xl shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
-                      style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
-                    >
-                      <MessageCircle className="h-5 sm:h-6 w-5 sm:w-6" />
-                      Tenho Interesse
-                    </button>
-                    <button 
-                      onClick={() => setSelectedProduct(null)}
-                      className="w-full py-2.5 rounded-2xl font-bold text-xs text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors sm:hidden"
-                    >
-                      Fechar
-                    </button>
+                <div className="p-6 sm:p-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800">
+                  <div className="max-w-md mx-auto sm:max-w-none space-y-3 sm:space-y-0">
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => addToCart(selectedProduct)}
+                        className="py-4 sm:py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95"
+                      >
+                        <ShoppingCart className="h-5 w-5" />
+                        Carrinho
+                      </button>
+                      <button 
+                        onClick={() => handleWhatsApp(selectedProduct)}
+                        className="py-4 sm:py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-500/20 transition-all hover:brightness-110 active:scale-95"
+                        style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
+                      >
+                        <MessageCircle className="h-5 w-5" />
+                        Comprar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
