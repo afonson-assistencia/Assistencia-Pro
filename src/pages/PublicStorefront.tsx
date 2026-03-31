@@ -38,7 +38,6 @@ export default function PublicStorefront() {
   const { settings } = useSettings();
   const [storefront, setStorefront] = useState<Storefront | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -147,14 +146,12 @@ export default function PublicStorefront() {
     if (!slug) return;
 
     const fetchStorefront = async () => {
-      setLoading(true);
       try {
         const q = query(collection(db, 'storefronts'), where('slug', '==', slug), where('active', '==', true));
         const querySnapshot = await getDocs(q);
         
         if (querySnapshot.empty) {
           setError('Vitrine não encontrada ou inativa.');
-          setLoading(false);
           return;
         }
 
@@ -179,8 +176,6 @@ export default function PublicStorefront() {
       } catch (err) {
         console.error('Error fetching storefront:', err);
         setError('Ocorreu um erro ao carregar a vitrine.');
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -270,31 +265,6 @@ export default function PublicStorefront() {
     p.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (error || (!loading && !storefront)) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 bg-slate-50">
-        <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center text-red-600">
-          <AlertCircle className="h-10 w-10" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-900">Ops!</h1>
-          <p className="text-slate-600 max-w-xs mx-auto">{error || 'Não conseguimos encontrar a vitrine que você está procurando. Verifique o link e tente novamente.'}</p>
-        </div>
-        <div className="flex flex-col gap-3 w-full max-w-xs">
-          <button 
-            onClick={() => window.location.reload()} 
-            className="btn btn-primary w-full gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Tentar Novamente
-          </button>
-          <a href="/" className="btn btn-secondary w-full">
-            Voltar para o Início
-          </a>
-        </div>
-      </div>
-    );
-  }
 
   const storefrontPlaceholder = storefront || {
     name: '',
@@ -327,13 +297,6 @@ export default function PublicStorefront() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button 
-              onClick={copyStorefrontLink}
-              className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-all active:scale-90"
-              title="Copiar Link"
-            >
-              <Copy className="h-5 w-5" />
-            </button>
             <button 
               onClick={() => setIsCartOpen(true)}
               className="relative p-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white shadow-lg shadow-blue-500/20 transition-all active:scale-90"
@@ -497,7 +460,7 @@ export default function PublicStorefront() {
             className="mx-auto w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden"
           >
             {storefront?.logoUrl || settings.logoUrl ? (
-              <img src={storefront?.logoUrl || settings.logoUrl} alt={storefront?.name || settings.name} className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
+              <img src={storefront?.logoUrl || settings.logoUrl} alt={storefront?.name || settings.name} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             ) : (
               <div className="flex flex-col items-center justify-center text-white/40">
                 <span className="text-4xl font-black">{storefront?.name?.charAt(0).toUpperCase() || settings.name?.charAt(0).toUpperCase() || 'V'}</span>
@@ -538,7 +501,7 @@ export default function PublicStorefront() {
 
           <div className="flex items-center justify-center gap-3">
             <button 
-              onClick={handleShare}
+               onClick={copyStorefrontLink}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold uppercase tracking-wider hover:bg-white/20 transition-all"
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
@@ -582,23 +545,7 @@ export default function PublicStorefront() {
 
       {/* Products Grid */}
       <main className="max-w-7xl mx-auto px-6 mt-12">
-        {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800/50 rounded-3xl p-4 space-y-4 animate-pulse border border-slate-100 dark:border-slate-700/50">
-                <div className="aspect-square bg-slate-100 dark:bg-slate-900/50 rounded-2xl"></div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-slate-100 dark:bg-slate-900/50 rounded w-3/4"></div>
-                  <div className="h-3 bg-slate-100 dark:bg-slate-900/50 rounded w-1/2"></div>
-                </div>
-                <div className="flex justify-between items-center pt-2">
-                  <div className="h-6 bg-slate-100 dark:bg-slate-900/50 rounded w-1/3"></div>
-                  <div className="h-8 w-8 bg-slate-100 dark:bg-slate-900/50 rounded-full"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredProducts.length > 0 ? (
+        {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
             {filteredProducts.map((product, idx) => (
               <motion.div 
@@ -687,25 +634,6 @@ export default function PublicStorefront() {
           </div>
         )}
       </main>
-
-      {/* Floating WhatsApp Button */}
-      {storefront?.whatsappNumber && (
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => handleWhatsApp()}
-          className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-40 transition-colors"
-          style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
-        >
-          <MessageCircle className="h-8 w-8" />
-          <span className="absolute -top-2 -right-2 flex h-5 w-5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-5 w-5 border-2 border-white" style={{ backgroundColor: currentTheme.buttonColor }}></span>
-          </span>
-        </motion.button>
-      )}
 
       {/* Product Detail Modal */}
       <AnimatePresence>

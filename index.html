@@ -21,26 +21,8 @@
       }
     </script>
   </head>
-  <body class="bg-[#020617]">
-    <div id="loading-screen" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
-      <div id="loading-bg" class="absolute inset-0 bg-[#020617]"></div>
-      <div class="relative flex flex-col items-center gap-6">
-        <div id="loading-logo-container" class="relative">
-          <div id="loading-spinner" class="h-24 w-24 rounded-full border-4 border-t-transparent animate-spin"></div>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <img id="loading-icon" src="" alt="Logo" class="h-12 w-12 rounded-lg object-cover shadow-lg" />
-          </div>
-        </div>
-        <div class="flex flex-col items-center gap-2">
-          <h1 id="loading-title" class="text-2xl font-bold tracking-tight text-white">Assistência Pro</h1>
-          <p id="loading-subtitle" class="text-sm font-medium text-slate-400">Carregando ambiente seguro...</p>
-        </div>
-        <div class="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          <div id="loading-bar" class="h-full w-0 bg-blue-500 transition-all duration-300"></div>
-        </div>
-      </div>
-    </div>
-
+  <body>
+    
     <script>
       (function() {
         // Configuration for loading screen
@@ -54,41 +36,6 @@
         const bar = document.getElementById('loading-bar');
         const mLink = document.getElementById('manifest-link');
 
-        if (isMotoboy) {
-          // Motoboy Theme (Yellow/Orange/Black)
-          bg.style.backgroundColor = '#000000';
-          spinner.style.borderColor = '#facc15'; // yellow-400
-          spinner.style.borderTopColor = 'transparent';
-          icon.src = 'https://img.freepik.com/premium-photo/delivery-man-scooter-express-food-delivery-around-city-yellow-background-delivery-fast-high-speed-ai-generation_235573-2619.jpg';
-          title.innerText = 'Motoboy Pro';
-          title.style.color = '#facc15';
-          subtitle.innerText = 'Preparando suas entregas...';
-          subtitle.style.color = '#a1a1aa';
-          bar.style.backgroundColor = '#facc15';
-          if (mLink) mLink.href = '/manifest-motoboy.json';
-        } else if (isPublicStorefront) {
-          // Public Storefront Theme (Clean/White)
-          bg.style.backgroundColor = '#f8fafc';
-          spinner.style.borderColor = '#3b82f6';
-          spinner.style.borderTopColor = 'transparent';
-          icon.src = '/logo.png';
-          title.innerText = 'Vitrine Digital';
-          title.style.color = '#0f172a';
-          subtitle.innerText = 'Buscando os melhores produtos...';
-          subtitle.style.color = '#64748b';
-          bar.style.backgroundColor = '#3b82f6';
-          if (mLink) mLink.href = '/manifest.json';
-        } else {
-          // Admin Theme (Blue/Slate)
-          bg.style.backgroundColor = '#020617';
-          spinner.style.borderColor = '#3b82f6'; // blue-500
-          spinner.style.borderTopColor = 'transparent';
-          icon.src = '/logo.png';
-          title.innerText = 'Assistência Pro';
-          subtitle.innerText = 'Carregando painel administrativo...';
-          bar.style.backgroundColor = '#3b82f6';
-          if (mLink) mLink.href = '/manifest-admin.json';
-        }
 
         // Handle broken icons
         icon.onerror = function() {
