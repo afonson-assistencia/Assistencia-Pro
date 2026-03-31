@@ -509,13 +509,6 @@ export default function PublicStorefront() {
             </button>
           </div>
         </div>
-
-        {/* Wave Divider */}
-        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
-          <svg className="relative block w-full h-[40px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C58.47,105.15,123.3,110.15,189.3,105.15c66-5,123.3-25.15,132.09-48.71Z" style={{ fill: currentTheme.backgroundColor }}></path>
-          </svg>
-        </div>
       </header>
 
       {/* Search & Filter */}
@@ -527,7 +520,7 @@ export default function PublicStorefront() {
             <input 
               type="text" 
               placeholder="O que você está procurando?"
-              className="flex-1 bg-transparent border-none focus:ring-0 px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400"
+              className="flex-1 bg-transparent border-none px-4 py-3 text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus:border-none"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -573,7 +566,6 @@ export default function PublicStorefront() {
                       <Package className="h-12 w-12" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between gap-2">
                   <div className="space-y-1">
@@ -651,11 +643,9 @@ export default function PublicStorefront() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-4xl bg-white dark:bg-slate-900 overflow-hidden shadow-2xl flex flex-col sm:flex-row h-[90vh] sm:h-auto sm:max-h-[90vh] rounded-t-[2rem] sm:rounded-[2rem]"
+              className="w-full max-w-4xl bg-white dark:bg-slate-900 overflow-hidden shadow-2xl flex flex-col sm:flex-row h-full sm:h-auto sm:max-h-[90vh] rounded-t-[2rem] sm:rounded-[2rem]"
             >
-              {/* Mobile Drag Handle */}
-              <div className="sm:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full z-50"></div>
-
+        
               <div className="w-full sm:w-1/2 h-[40vh] sm:h-auto bg-slate-50 dark:bg-slate-900/50 relative group/carousel shrink-0 border-b sm:border-b-0 sm:border-r border-slate-100 dark:border-slate-800">
                 {selectedProduct.imageUrls && selectedProduct.imageUrls.length > 0 ? (
                   <div className="relative w-full h-full overflow-hidden">
