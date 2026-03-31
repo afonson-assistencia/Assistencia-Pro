@@ -469,7 +469,7 @@ export default function PublicStorefront() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-t-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col sm:flex-row h-[95vh] sm:h-auto sm:max-h-[90vh]"
+              className="w-full max-w-4xl bg-white dark:bg-slate-900  overflow-hidden shadow-2xl flex flex-col sm:flex-row h-full"
             >
               {/* Mobile Drag Handle */}
               <div className="sm:hidden absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full z-50"></div>
