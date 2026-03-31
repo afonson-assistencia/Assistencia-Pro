@@ -68,15 +68,21 @@ export default function PublicStorefront() {
   }, [cart, slug]);
 
   const addToCart = (product: Product) => {
+    const isExisting = cart.some(item => item.id === product.id);
+    
+    if (isExisting) {
+      toast.success(`Mais um ${product.name} adicionado!`);
+    } else {
+      toast.success(`${product.name} adicionado ao carrinho!`);
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        toast.success(`Mais um ${product.name} adicionado!`);
         return prev.map(item => 
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      toast.success(`${product.name} adicionado ao carrinho!`);
       return [...prev, { ...product, quantity: 1 }];
     });
   };
