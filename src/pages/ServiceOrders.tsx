@@ -10,7 +10,7 @@ import { ptBR } from 'date-fns/locale';
 import { sendToN8N } from '../services/n8nService';
 import { maskPhone } from '../utils/masks';
 import { getWhatsAppUrl } from '../utils/whatsapp';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function ServiceOrders() {
@@ -87,9 +87,42 @@ export default function ServiceOrders() {
     };
   }, []);
 
+  const validateOSForm = () => {
+    if (!isAddingCustomer && !customerId) {
+      setError('Selecione um cliente ou cadastre um novo.');
+      return false;
+    }
+    if (isAddingCustomer) {
+      if (newCustomerName.trim().length < 3) {
+        setError('O nome do novo cliente deve ter pelo menos 3 caracteres.');
+        return false;
+      }
+      const cleanPhone = newCustomerPhone.replace(/\D/g, '');
+      if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+        setError('Telefone do novo cliente inválido.');
+        return false;
+      }
+    }
+    if (model.trim().length < 2) {
+      setError('Informe o modelo do aparelho.');
+      return false;
+    }
+    if (problem.trim().length < 3) {
+      setError('Descreva o problema relatado.');
+      return false;
+    }
+    if (totalValue < 0) {
+      setError('O valor total não pode ser negativo.');
+      return false;
+    }
+    return true;
+  };
+
   const handleAddOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!validateOSForm()) return;
+    
     setActionLoading(prev => ({ ...prev, submit: true }));
     
     let currentCustomerId = customerId;
@@ -98,18 +131,14 @@ export default function ServiceOrders() {
 
     try {
       if (isAddingCustomer) {
-        if (!newCustomerName || !newCustomerPhone) {
-          setError('Por favor, preencha o nome e telefone do cliente.');
-          return;
-        }
         const customerRef = await addDoc(collection(db, 'customers'), {
-          name: newCustomerName,
-          phone: newCustomerPhone,
+          name: newCustomerName.trim(),
+          phone: newCustomerPhone.trim(),
           createdAt: serverTimestamp(),
         });
         currentCustomerId = customerRef.id;
-        currentCustomerName = newCustomerName;
-        currentCustomerPhone = newCustomerPhone;
+        currentCustomerName = newCustomerName.trim();
+        currentCustomerPhone = newCustomerPhone.trim();
       } else if (customerId === 'consumidor-final') {
         currentCustomerId = 'consumidor-final';
         currentCustomerName = 'Consumidor Final';
@@ -131,12 +160,12 @@ export default function ServiceOrders() {
         customerId: currentCustomerId,
         customerName: currentCustomerName,
         customerPhone: currentCustomerPhone,
-        model,
+        model: model.trim(),
         services: selectedServices,
-        problem,
+        problem: problem.trim(),
         deadline: Timestamp.fromDate(deadline),
         warrantyDays,
-        notes,
+        notes: notes.trim(),
         totalValue,
         downPayment,
         downPaymentMethod,
@@ -145,7 +174,10 @@ export default function ServiceOrders() {
       };
 
       if (editingOrder) {
-        await updateDoc(doc(db, 'serviceOrders', editingOrder.id), orderData);
+        await updateDoc(doc(db, 'serviceOrders', editingOrder.id), {
+          ...orderData,
+          updatedAt: serverTimestamp(),
+        });
         
         try {
           await sendToN8N({
@@ -181,7 +213,7 @@ export default function ServiceOrders() {
       resetForm();
     } catch (error: any) {
       handleFirestoreError(error, OperationType.WRITE, 'serviceOrders');
-      setError(`Erro ao ${editingOrder ? 'atualizar' : 'criar'} ordem de serviço. Verifique os dados e tente novamente.`);
+      setError(`Erro ao ${editingOrder ? 'atualizar' : 'criar'} ordem de serviço. Verifique sua conexão.`);
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
     }

@@ -6,7 +6,7 @@ import { Sale, Product } from '../types';
 import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus, Loader2, MoreVertical, Eye } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { SaleItem, Customer } from '../types';
 
 export default function Sales() {

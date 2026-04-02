@@ -6,7 +6,7 @@ import { Expense } from '../types';
 import { Plus, Search, Trash2, Receipt, Calendar, X, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Expenses() {
   const { user, profile } = useAuth();

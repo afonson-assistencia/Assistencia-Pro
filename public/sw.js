@@ -1,4 +1,4 @@
-const CACHE_NAME = 'assispro-cache-v2';
+const CACHE_NAME = 'assispro-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -27,13 +27,14 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
 self.addEventListener('fetch', event => {
+  // Skip non-GET requests and Firebase/API calls for caching
+  if (event.request.method !== 'GET' || 
+      event.request.url.includes('firestore.googleapis.com') ||
+      event.request.url.includes('firebaseinstallations.googleapis.com')) {
+    return;
+  }
+
   // For navigation requests, try network first, then cache, then fallback to index.html
   if (event.request.mode === 'navigate') {
     event.respondWith(
@@ -49,7 +50,16 @@ self.addEventListener('fetch', event => {
         if (response) {
           return response;
         }
-        return fetch(event.request);
+        return fetch(event.request).then(networkResponse => {
+          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+            return networkResponse;
+          }
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+          return networkResponse;
+        });
       })
   );
 });

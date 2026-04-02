@@ -1,4 +1,10 @@
-import Database from "tauri-plugin-sql-api";
+import Database from "@tauri-apps/plugin-sql";
+
+declare global {
+  interface Window {
+    __TAURI__?: any;
+  }
+}
 
 export class LocalDB {
   private static instance: Database | null = null;

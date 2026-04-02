@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ShoppingItem, Product } from '../types';
 import { Plus, ShoppingCart, Trash2, CheckCircle2, AlertCircle, Loader2, Package, RefreshCw, Check, X } from 'lucide-react';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ShoppingList() {
   const { user, profile } = useAuth();

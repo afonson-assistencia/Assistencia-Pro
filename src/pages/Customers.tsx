@@ -4,7 +4,7 @@ import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Customer } from '../types';
 import { Plus, Search, UserPlus, Phone, Edit2, Trash2, X, AlertCircle, Eye, CheckCircle2, ClipboardList, ShoppingCart, Loader2, MoreVertical } from 'lucide-react';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { maskPhone } from '../utils/masks';
 import { getWhatsAppUrl } from '../utils/whatsapp';
 import { ServiceOrder, Sale } from '../types';
@@ -47,22 +47,40 @@ export default function Customers() {
     return () => unsubscribe();
   }, []);
 
+  const validateForm = () => {
+    if (name.trim().length < 3) {
+      setError('O nome deve ter pelo menos 3 caracteres.');
+      return false;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+      setError('Telefone inválido. Informe o DDD e o número.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!validateForm()) return;
+    
     setActionLoading(prev => ({ ...prev, submit: true }));
     try {
+      const customerData = {
+        name: name.trim(),
+        phone: phone.trim(),
+      };
+
       if (editingCustomer) {
         await updateDoc(doc(db, 'customers', editingCustomer.id), {
-          name,
-          phone,
+          ...customerData,
           updatedAt: serverTimestamp(),
         });
         setSuccess('Cliente atualizado com sucesso!');
       } else {
         await addDoc(collection(db, 'customers'), {
-          name,
-          phone,
+          ...customerData,
           createdAt: serverTimestamp(),
         });
         setSuccess('Cliente cadastrado com sucesso!');
@@ -70,7 +88,7 @@ export default function Customers() {
       closeModal();
     } catch (error: any) {
       handleFirestoreError(error, OperationType.WRITE, 'customers');
-      setError('Erro ao salvar cliente. Verifique os dados e tente novamente.');
+      setError('Erro ao salvar cliente. Verifique sua conexão e tente novamente.');
     } finally {
       setActionLoading(prev => ({ ...prev, submit: false }));
     }

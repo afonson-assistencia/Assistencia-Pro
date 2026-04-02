@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Product, Category } from '../types';
 import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2, Palette } from 'lucide-react';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Inventory() {
   const { user, profile } = useAuth();
@@ -84,8 +84,31 @@ export default function Inventory() {
     }
   }, [success]);
 
+  const validateProductForm = () => {
+    if (name.trim().length < 2) {
+      setError('O nome do produto deve ter pelo menos 2 caracteres.');
+      return false;
+    }
+    if (price <= 0) {
+      setError('O preço deve ser maior que zero.');
+      return false;
+    }
+    if (stock < 0) {
+      setError('O estoque não pode ser negativo.');
+      return false;
+    }
+    if (!category) {
+      setError('Selecione uma categoria.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    if (!validateProductForm()) return;
+
     setActionLoading(prev => ({ ...prev, submitProduct: true }));
     try {
       let finalImageUrls = imageUrls.filter(url => url.trim() !== '');
@@ -95,29 +118,26 @@ export default function Inventory() {
         finalImageUrls = ['https://picsum.photos/seed/iphone14pro/800/800'];
       }
 
+      const productData = {
+        name: name.trim(),
+        price,
+        stock,
+        category,
+        imei: imei.trim(),
+        description: description.trim(),
+        imageUrl: finalImageUrls[0] || imageUrl,
+        imageUrls: finalImageUrls,
+      };
+
       if (editingProduct) {
         await updateDoc(doc(db, 'products', editingProduct.id), {
-          name,
-          price,
-          stock,
-          category,
-          imei,
-          description,
-          imageUrl: finalImageUrls[0] || imageUrl,
-          imageUrls: finalImageUrls,
+          ...productData,
           updatedAt: serverTimestamp(),
         });
         setSuccess('Produto atualizado com sucesso!');
       } else {
         await addDoc(collection(db, 'products'), {
-          name,
-          price,
-          stock,
-          category,
-          imei,
-          description,
-          imageUrl: finalImageUrls[0] || imageUrl,
-          imageUrls: finalImageUrls,
+          ...productData,
           createdAt: serverTimestamp(),
         });
         setSuccess('Produto cadastrado com sucesso!');
@@ -126,7 +146,7 @@ export default function Inventory() {
       resetForm();
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'products');
-      setError('Erro ao salvar produto.');
+      setError('Erro ao salvar produto. Verifique sua conexão.');
     } finally {
       setActionLoading(prev => ({ ...prev, submitProduct: false }));
     }

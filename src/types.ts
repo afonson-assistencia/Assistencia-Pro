@@ -159,6 +159,16 @@ export interface ShoppingItem {
   createdAt: any;
 }
 
+export interface AccessLog {
+  id: string;
+  userId: string;
+  userEmail: string;
+  device: string;
+  location: string;
+  ip: string;
+  timestamp: any;
+}
+
 export const STATUS_LABELS: Record<OSStatus, string> = {
   'pending': 'Pendente',
   'in-progress': 'Em Andamento',

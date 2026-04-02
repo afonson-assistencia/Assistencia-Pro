@@ -1,9 +1,9 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Package, ShoppingCart, LogOut, Menu, X, Receipt, Moon, Sun, ShieldCheck, Download, Wallet, Settings as SettingsIcon, Bike, Database, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Package, ShoppingCart, LogOut, Menu, X, Receipt, Moon, Sun, ShieldCheck, Download, Wallet, Settings as SettingsIcon, Bike, Database, Globe, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -43,6 +43,7 @@ export default function Layout() {
       { path: '/cash-closure', label: 'Fechamento', icon: Wallet },
       { path: '/delivery-management', label: 'Entregas', icon: Bike },
       { path: '/storefront', label: 'Vitrine', icon: Globe },
+      ...(isAdmin ? [{ path: '/access-logs', label: 'Logs de Acesso', icon: Shield }] : []),
     ]),
     ...(isAdmin ? [{ path: '/settings', label: 'Configurações', icon: SettingsIcon }] : []),
   ];

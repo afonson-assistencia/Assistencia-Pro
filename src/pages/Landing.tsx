@@ -13,16 +13,21 @@ export default function Landing() {
 
   useEffect(() => {
     // Check if already installed or running in Tauri
-    if (window.matchMedia('(display-mode: standalone)').matches || (window as any).__TAURI__) {
-      setIsInstalled(true);
-    }
+    const checkInstallation = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isTauri = !!(window as any).__TAURI__;
+      const wasAccepted = localStorage.getItem('pwa-installed') === 'true';
+      
+      if (isStandalone || isTauri || wasAccepted) {
+        setIsInstalled(true);
+      }
+    };
+
+    checkInstallation();
 
     const handleBeforeInstallPrompt = (e: any) => {
-      // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
       setShowInstallBtn(true);
     };
 
@@ -30,7 +35,7 @@ export default function Landing() {
       setIsInstalled(true);
       setShowInstallBtn(false);
       setDeferredPrompt(null);
-      console.log('PWA was installed');
+      localStorage.setItem('pwa-installed', 'true');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -54,6 +59,7 @@ export default function Landing() {
     if (outcome === 'accepted') {
       setIsInstalled(true);
       setShowInstallBtn(false);
+      localStorage.setItem('pwa-installed', 'true');
     }
     
     // We've used the prompt, and can't use it again, throw it away

@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { useSettings } from '../contexts/SettingsContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Storefront, Product, StorefrontTheme } from '../types';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Plus, 
   Search, 

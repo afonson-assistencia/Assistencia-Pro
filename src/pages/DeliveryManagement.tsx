@@ -6,7 +6,7 @@ import { DeliveryLocation, DeliveryRun, DeliveryStatus, Motoboy } from '../types
 import { Plus, Trash2, CheckCircle, XCircle, Clock, MapPin, DollarSign, Calendar, Filter, UserPlus, Users, Bike, Loader2, Search, MoreVertical, Eye, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 export default function DeliveryManagement() {

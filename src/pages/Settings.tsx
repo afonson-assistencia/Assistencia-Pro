@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { Save, Building2, Image as ImageIcon, CheckCircle2, AlertCircle, Users, Shield, Loader2 } from 'lucide-react';
 import { collection, query, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -96,33 +96,11 @@ export default function Settings() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Configurações</h1>
-          <p className="text-sm sm:text-base text-[var(--text-muted)]">Personalize a identidade da sua assistência e gerencie usuários.</p>
+          <p className="text-sm sm:text-base text-[var(--text-muted)]">Personalize a identidade da sua assistência.</p>
         </div>
       </div>
 
-      <div className="flex gap-2 sm:gap-4 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('general')}
-          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
-            activeTab === 'general' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
-          }`}
-        >
-          Geral
-          {activeTab === 'general' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`pb-2 px-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap ${
-            activeTab === 'users' ? 'text-blue-600' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
-          }`}
-        >
-          Usuários e Permissões
-          {activeTab === 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-        </button>
-      </div>
-
-      {activeTab === 'general' ? (
-        <div className="card p-6">
+      <div className="card p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {success && (
             <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
@@ -203,61 +181,6 @@ export default function Settings() {
           </div>
         </form>
       </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="card overflow-x-auto">
-            <div className="min-w-[600px] lg:min-w-0">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800/50">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Usuário</th>
-                    <th className="px-4 py-3 font-semibold">E-mail</th>
-                    <th className="px-4 py-3 font-semibold">Função</th>
-                    <th className="px-4 py-3 font-semibold text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-color)]">
-                  {users.map(user => (
-                    <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                      <td className="px-4 py-3 font-medium">{user.email.split('@')[0]}</td>
-                      <td className="px-4 py-3 text-[var(--text-muted)]">{user.email}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                          user.role === 'motoboy' ? 'bg-blue-100 text-blue-800' :
-                          'bg-slate-100 text-slate-800'
-                        }`}>
-                          {user.role === 'admin' ? 'Administrador' :
-                           user.role === 'motoboy' ? 'Motoboy' :
-                           'Equipe'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <select
-                          className="input text-xs py-1 px-2 w-auto"
-                          value={user.role}
-                          onChange={(e) => handleUpdateRole(user.id, e.target.value as UserRole)}
-                          disabled={user.id === profile?.id}
-                        >
-                          <option value="admin">Administrador</option>
-                          <option value="staff">Equipe</option>
-                          <option value="motoboy">Motoboy</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex gap-3">
-            <Shield className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <p className="text-sm text-blue-800 dark:text-blue-300">
-              <strong>Dica:</strong> Para novos motoboys, peça para eles se cadastrarem normalmente e depois altere a função deles aqui para "Motoboy".
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

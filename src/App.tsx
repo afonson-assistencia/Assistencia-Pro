@@ -4,14 +4,11 @@
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import { doc } from 'firebase/firestore';
+import React, { useEffect } from 'react';
 
-import { auth, db } from './firebase';
-import { UserProfile } from './types';
+import { db } from './firebase';
 import { getDocFromServer } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from './utils/firestoreErrorHandler';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Landing from './pages/Landing';
@@ -30,45 +27,22 @@ import PublicStorefront from './pages/PublicStorefront';
 import DeliveryManagement from './pages/DeliveryManagement';
 import MotoboyDashboard from './pages/MotoboyDashboard';
 import MotoboyLogin from './pages/MotoboyLogin';
+import AccessLogs from './pages/AccessLogs';
 import Layout from './components/Layout';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import PWAUpdateNotification from './components/PWAUpdateNotification';
+import { syncService } from './services/syncService';
 
-interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  loading: boolean;
-  signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType>({ 
-  user: null, 
-  profile: null, 
-  loading: true,
-  signOut: async () => {} 
-});
-
-export const useAuth = () => useContext(AuthContext);
-
-export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut();
-      setUser(null);
-      setProfile(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
+function AppContent() {
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
+    // Initialize sync service
+    syncService.init();
+
     // Test connection to Firestore
     async function testConnection() {
-      const path = 'test/connection';
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
       } catch (error) {
@@ -82,52 +56,6 @@ export default function App() {
     }
 
     testConnection();
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const path = `users/${firebaseUser.uid}`;
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const isAdminEmail = (email: string | null) => {
-              const adminEmails = ['afonsocnj@gmail.com', 'admintec@gmail.com'];
-              return adminEmails.includes(email?.toLowerCase() || '');
-            };
-
-            // Ensure admin role if email matches, even if already exists
-            if (isAdminEmail(firebaseUser.email) && data.role !== 'admin') {
-              await setDoc(doc(db, 'users', firebaseUser.uid), { ...data, role: 'admin' }, { merge: true });
-              setProfile({ id: userDoc.id, ...data, role: 'admin' } as UserProfile);
-            } else {
-              setProfile({ id: userDoc.id, ...data } as UserProfile);
-            }
-          } else {
-            // Create default profile for new user
-            const isAdminEmail = (email: string | null) => {
-              const adminEmails = ['afonsocnj@gmail.com', 'admintec@gmail.com'];
-              return adminEmails.includes(email?.toLowerCase() || '');
-            };
-
-            const newProfile = {
-              email: firebaseUser.email || '',
-              role: isAdminEmail(firebaseUser.email) ? 'admin' : 'staff',
-              createdAt: serverTimestamp(),
-            };
-            await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
-            setProfile({ id: firebaseUser.uid, ...newProfile } as any);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, path);
-        }
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -139,35 +67,42 @@ export default function App() {
   }
 
   return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+        <Route path="/motoboy-login" element={!user ? <MotoboyLogin /> : <Navigate to="/" />} />
+        <Route path="/s/:slug" element={<PublicStorefront />} />
+        <Route
+          path="/"
+          element={user ? <Layout /> : <Landing />}
+        >
+          <Route index element={profile?.role === 'motoboy' ? <Navigate to="/motoboy-dashboard" /> : <Dashboard />} />
+          <Route path="customers" element={user ? <Customers /> : <Navigate to="/login" />} />
+          <Route path="service-orders" element={user ? <ServiceOrders /> : <Navigate to="/login" />} />
+          <Route path="inventory" element={user ? <Inventory /> : <Navigate to="/login" />} />
+          <Route path="shopping-list" element={user ? <ShoppingList /> : <Navigate to="/login" />} />
+          <Route path="sales" element={user ? <Sales /> : <Navigate to="/login" />} />
+          <Route path="expenses" element={user ? <Expenses /> : <Navigate to="/login" />} />
+          <Route path="cash-closure" element={user ? <CashClosure /> : <Navigate to="/login" />} />
+          <Route path="settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+          <Route path="storefront" element={user ? <StorefrontManager /> : <Navigate to="/login" />} />
+          <Route path="delivery-management" element={user ? <DeliveryManagement /> : <Navigate to="/login" />} />
+          <Route path="access-logs" element={user ? <AccessLogs /> : <Navigate to="/login" />} />
+          <Route path="motoboy-dashboard" element={user ? <MotoboyDashboard /> : <Navigate to="/login" />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default function App() {
+  return (
     <ErrorBoundary>
       <SettingsProvider>
-        <PWAUpdateNotification />
-        <AuthContext.Provider value={{ user, profile, loading, signOut: handleSignOut }}>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-              <Route path="/motoboy-login" element={!user ? <MotoboyLogin /> : <Navigate to="/" />} />
-              <Route path="/s/:slug" element={<PublicStorefront />} />
-              <Route
-                path="/"
-                element={user ? <Layout /> : <Landing />}
-              >
-                <Route index element={profile?.role === 'motoboy' ? <Navigate to="/motoboy-dashboard" /> : <Dashboard />} />
-                <Route path="customers" element={user ? <Customers /> : <Navigate to="/login" />} />
-                <Route path="service-orders" element={user ? <ServiceOrders /> : <Navigate to="/login" />} />
-                <Route path="inventory" element={user ? <Inventory /> : <Navigate to="/login" />} />
-                <Route path="shopping-list" element={user ? <ShoppingList /> : <Navigate to="/login" />} />
-                <Route path="sales" element={user ? <Sales /> : <Navigate to="/login" />} />
-                <Route path="expenses" element={user ? <Expenses /> : <Navigate to="/login" />} />
-                <Route path="cash-closure" element={user ? <CashClosure /> : <Navigate to="/login" />} />
-                <Route path="settings" element={user ? <Settings /> : <Navigate to="/login" />} />
-                <Route path="storefront" element={user ? <StorefrontManager /> : <Navigate to="/login" />} />
-                <Route path="delivery-management" element={user ? <DeliveryManagement /> : <Navigate to="/login" />} />
-                <Route path="motoboy-dashboard" element={user ? <MotoboyDashboard /> : <Navigate to="/login" />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </AuthContext.Provider>
+        <AuthProvider>
+          <PWAUpdateNotification />
+          <AppContent />
+        </AuthProvider>
       </SettingsProvider>
     </ErrorBoundary>
   );
