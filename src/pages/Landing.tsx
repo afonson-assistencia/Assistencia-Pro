@@ -1,12 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ShieldCheck, ArrowRight, Smartphone, Wrench, Zap } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Smartphone, Wrench, Zap, Monitor } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function Landing() {
   const navigate = useNavigate();
   const { settings } = useSettings();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed or running in Tauri
+    if (window.matchMedia('(display-mode: standalone)').matches || (window as any).__TAURI__) {
+      setIsInstalled(true);
+    }
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      // Update UI notify the user they can install the PWA
+      setShowInstallBtn(true);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+      console.log('PWA was installed');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    // Show the install prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    // Optionally, send analytics event with outcome of user choice
+    console.log(`User response to the install prompt: ${outcome}`);
+    
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+      setShowInstallBtn(false);
+    }
+    
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+  };
 
   const handleStart = () => {
     navigate('/login');
@@ -99,6 +151,20 @@ export default function Landing() {
               <span>Começar a Consertar</span>
               <ArrowRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
             </motion.button>
+
+            {showInstallBtn && !isInstalled && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleInstallClick}
+                className="flex items-center gap-3 rounded-2xl bg-white/10 px-6 py-3 text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 border border-white/10 sm:px-10 sm:py-5 sm:text-xl"
+              >
+                <Monitor className="h-6 w-6" />
+                <span>Baixar App Desktop (Tauri)</span>
+              </motion.button>
+            )}
           </motion.div>
         </motion.div>
 
