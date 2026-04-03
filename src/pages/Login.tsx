@@ -155,9 +155,6 @@ export default function Login() {
             <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-main)]">
               {settings.name}
             </h2>
-            <div className="bg-red-600 text-white p-4 rounded-lg my-4 font-bold animate-bounce">
-              ESTA É A VERSÃO MAIS RECENTE - SE VOCÊ VÊ ISSO, O CÓDIGO FOI ATUALIZADO
-            </div>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
               Entre na sua conta
             </p>
