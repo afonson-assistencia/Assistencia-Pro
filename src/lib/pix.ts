@@ -16,11 +16,36 @@ interface PixOptions {
  * Removes accents and special characters from a string
  */
 function sanitize(str: string): string {
+  if (!str) return '';
   return str
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Remove accents
     .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
+    .trim()
     .toUpperCase();
+}
+
+/**
+ * Cleans and formats the PIX key
+ */
+function formatPixKey(key: string): string {
+  const cleanKey = key.trim();
+  
+  // If it's an email, keep it as is
+  if (cleanKey.includes('@')) return cleanKey;
+  
+  // If it's a random key (long and has hyphens), keep it
+  if (cleanKey.length > 30 && cleanKey.includes('-')) return cleanKey;
+  
+  // Remove everything except numbers and +
+  const digitsOnly = cleanKey.replace(/[^\d+]/g, '');
+  
+  // If it's a potential phone number (10 or 11 digits without +55)
+  if (/^\d{10,11}$/.test(digitsOnly)) {
+    return `+55${digitsOnly}`;
+  }
+  
+  return digitsOnly;
 }
 
 /**
@@ -37,7 +62,7 @@ export function generatePixPayload({
   city,
   amount,
   description,
-  transactionId = '***'
+  transactionId
 }: PixOptions): string {
   const formatField = (id: string, value: string) => {
     const len = getByteLength(value);
@@ -49,7 +74,7 @@ export function generatePixPayload({
 
   // 26: Merchant Account Information - PIX
   const gui = formatField('00', 'br.gov.bcb.pix');
-  const keyField = formatField('01', key);
+  const keyField = formatField('01', formatPixKey(key));
   const descField = description ? formatField('02', sanitize(description).substring(0, 25)) : '';
   
   const merchantAccountInfo = `${gui}${keyField}${descField}`;
@@ -70,13 +95,15 @@ export function generatePixPayload({
   payload += formatField('58', 'BR');
 
   // 59: Merchant Name
-  payload += formatField('59', sanitize(name).substring(0, 25));
+  payload += formatField('59', sanitize(name).substring(0, 25) || 'LOJA');
 
   // 60: Merchant City
-  payload += formatField('60', sanitize(city).substring(0, 15));
+  payload += formatField('60', sanitize(city).substring(0, 15) || 'SAO PAULO');
 
   // 62: Additional Data Field Template
-  const txId = transactionId === '***' ? '***' : sanitize(transactionId).substring(0, 25);
+  // Standard PIX requires a transaction ID. If not provided, use '***' or a default string.
+  // Some banks prefer a non-empty alphanumeric string.
+  const txId = sanitize(transactionId || 'PIX01').substring(0, 25) || 'PIX01';
   const txIdField = formatField('05', txId);
   payload += formatField('62', txIdField);
 
