@@ -76,25 +76,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (userDoc.exists()) {
             const data = userDoc.data();
             const isAdminEmail = (email: string | null) => {
-              const adminEmails = ['afonsocnj@gmail.com', 'admintec@gmail.com'];
-              return adminEmails.includes(email?.toLowerCase() || '');
+              return email?.toLowerCase() === 'admintec@gmail.com';
             };
 
-            if (isAdminEmail(firebaseUser.email) && data.role !== 'admin') {
-              await setDoc(doc(db, 'users', firebaseUser.uid), { ...data, role: 'admin' }, { merge: true });
-              setProfile({ id: userDoc.id, ...data, role: 'admin' } as UserProfile);
+            if (isAdminEmail(firebaseUser.email)) {
+              if (data.role !== 'admin') {
+                await setDoc(doc(db, 'users', firebaseUser.uid), { ...data, role: 'admin' }, { merge: true });
+                setProfile({ id: userDoc.id, ...data, role: 'admin' } as UserProfile);
+              } else {
+                setProfile({ id: userDoc.id, ...data } as UserProfile);
+              }
             } else {
-              setProfile({ id: userDoc.id, ...data } as UserProfile);
+              // If user is not admintec but has admin role, demote them to motoboy
+              if (data.role === 'admin') {
+                await setDoc(doc(db, 'users', firebaseUser.uid), { ...data, role: 'motoboy' }, { merge: true });
+                setProfile({ id: userDoc.id, ...data, role: 'motoboy' } as UserProfile);
+              } else {
+                setProfile({ id: userDoc.id, ...data } as UserProfile);
+              }
             }
           } else {
             const isAdminEmail = (email: string | null) => {
-              const adminEmails = ['afonsocnj@gmail.com', 'admintec@gmail.com'];
-              return adminEmails.includes(email?.toLowerCase() || '');
+              return email?.toLowerCase() === 'admintec@gmail.com';
             };
 
             const newProfile = {
               email: firebaseUser.email || '',
-              role: isAdminEmail(firebaseUser.email) ? 'admin' : 'staff',
+              role: isAdminEmail(firebaseUser.email) ? 'admin' : 'motoboy',
               createdAt: serverTimestamp(),
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);

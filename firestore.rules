@@ -11,11 +11,10 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         (request.auth.token.email != null && 
-         request.auth.token.email.lower() == "afonsocnj@gmail.com") ||
-        (request.auth.token.email != null && 
          request.auth.token.email.lower() == "admintec@gmail.com") ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower() == "admintec@gmail.com")
       );
     }
 
