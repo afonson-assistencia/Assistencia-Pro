@@ -3,11 +3,12 @@ import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, update
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Sale, Product } from '../types';
-import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus, Loader2, MoreVertical, Eye } from 'lucide-react';
+import { ShoppingCart, Search, Plus, Calendar, X, Trash2, AlertCircle, ShoppingBag, UserPlus, Loader2, MoreVertical, Eye, Smartphone } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../contexts/AuthContext';
 import { SaleItem, Customer } from '../types';
+import PixQRCodeModal from '../components/PixQRCodeModal';
 
 export default function Sales() {
   const { user, profile } = useAuth();
@@ -18,6 +19,8 @@ export default function Sales() {
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
   const [deletingSale, setDeletingSale] = useState<string | null>(null);
   const [actionMenuSale, setActionMenuSale] = useState<Sale | null>(null);
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+  const [pixAmount, setPixAmount] = useState(0);
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -517,12 +520,24 @@ export default function Sales() {
                   <span>R$ {viewingSale.totalValue.toFixed(2)}</span>
                 </div>
               </div>
-              <button
-                onClick={() => setViewingSale(null)}
-                className="btn btn-secondary w-full mt-4"
-              >
-                Fechar
-              </button>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => {
+                    setPixAmount(viewingSale.totalValue);
+                    setIsPixModalOpen(true);
+                  }}
+                  className="btn bg-emerald-600 text-white hover:bg-emerald-700 flex-1 gap-2"
+                >
+                  <Smartphone className="h-4 w-4" />
+                  Cobrar PIX
+                </button>
+                <button
+                  onClick={() => setViewingSale(null)}
+                  className="btn btn-secondary flex-1"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -759,23 +774,39 @@ export default function Sales() {
                     </div>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col gap-3">
                     <button
                       type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      className="btn btn-secondary flex-1"
-                      disabled={actionLoading.submit}
+                      onClick={() => {
+                        const subtotal = currentItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+                        const total = Math.max(0, subtotal - discount);
+                        setPixAmount(total);
+                        setIsPixModalOpen(true);
+                      }}
+                      disabled={currentItems.length === 0}
+                      className="btn bg-emerald-600 text-white hover:bg-emerald-700 w-full gap-2"
                     >
-                      Cancelar
+                      <Smartphone className="h-4 w-4" />
+                      Gerar QR Code PIX
                     </button>
-                    <button
-                      onClick={handleAddSale}
-                      disabled={currentItems.length === 0 || actionLoading.submit}
-                      className="btn btn-primary flex-1 gap-2"
-                    >
-                      {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {actionLoading.submit ? 'Processando...' : 'Finalizar Venda'}
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(false)}
+                        className="btn btn-secondary flex-1"
+                        disabled={actionLoading.submit}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleAddSale}
+                        disabled={currentItems.length === 0 || actionLoading.submit}
+                        className="btn btn-primary flex-1 gap-2"
+                      >
+                        {actionLoading.submit && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {actionLoading.submit ? 'Processando...' : 'Finalizar Venda'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -783,6 +814,13 @@ export default function Sales() {
           </div>
         </div>
       )}
+
+      <PixQRCodeModal
+        isOpen={isPixModalOpen}
+        onClose={() => setIsPixModalOpen(false)}
+        amount={pixAmount}
+        description="Venda de Acessórios"
+      />
     </div>
   );
 }

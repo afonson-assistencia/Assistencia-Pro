@@ -16,6 +16,9 @@ export default function Settings() {
   const { profile } = useAuth();
   const [name, setName] = useState(settings.name);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl);
+  const [pixKey, setPixKey] = useState(settings.pixKey || '');
+  const [pixCity, setPixCity] = useState(settings.pixCity || '');
+  const [pixName, setPixName] = useState(settings.pixName || '');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -90,6 +93,9 @@ export default function Settings() {
   useEffect(() => {
     setName(settings.name);
     setLogoUrl(settings.logoUrl);
+    setPixKey(settings.pixKey || '');
+    setPixCity(settings.pixCity || '');
+    setPixName(settings.pixName || '');
   }, [settings]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +128,7 @@ export default function Settings() {
     setSuccess(false);
 
     try {
-      await updateSettings({ name, logoUrl });
+      await updateSettings({ name, logoUrl, pixKey, pixCity, pixName });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -242,6 +248,48 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="pt-6 border-t border-[var(--border-color)]">
+                <h3 className="text-sm font-bold text-[var(--text-main)] mb-4 flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-blue-600" />
+                  Configuração de PIX
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Chave PIX</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="CPF, CNPJ, Email ou Aleatória"
+                      value={pixKey}
+                      onChange={(e) => setPixKey(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Nome do Beneficiário</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Nome que aparece no banco"
+                      value={pixName}
+                      onChange={(e) => setPixName(e.target.value)}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Cidade</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Ex: Sao Paulo"
+                      value={pixCity}
+                      onChange={(e) => setPixCity(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px] text-[var(--text-muted)] italic">
+                  * Estes dados são necessários para gerar o QR Code de cobrança nas vendas.
+                </p>
               </div>
             </div>
 

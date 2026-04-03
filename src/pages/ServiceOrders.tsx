@@ -12,6 +12,8 @@ import { maskPhone } from '../utils/masks';
 import { getWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
+import PixQRCodeModal from '../components/PixQRCodeModal';
+import { Smartphone } from 'lucide-react';
 
 export default function ServiceOrders() {
   const { user, profile } = useAuth();
@@ -25,6 +27,9 @@ export default function ServiceOrders() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sendingN8N, setSendingN8N] = useState<string | null>(null);
+  const [isPixModalOpen, setIsPixModalOpen] = useState(false);
+  const [pixAmount, setPixAmount] = useState(0);
+  const [pixDescription, setPixDescription] = useState('');
 
   // New Customer state
   const [newCustomerName, setNewCustomerName] = useState('');
@@ -956,6 +961,24 @@ ${order.status === 'ready'
               <div className="flex gap-3 pt-4 md:col-span-2">
                 <button
                   type="button"
+                  onClick={() => {
+                    if (downPayment > 0) {
+                      setPixAmount(downPayment);
+                      setPixDescription(`Entrada O.S. ${model}`);
+                    } else {
+                      setPixAmount(totalValue);
+                      setPixDescription(`Pagamento O.S. ${model}`);
+                    }
+                    setIsPixModalOpen(true);
+                  }}
+                  disabled={totalValue <= 0}
+                  className="btn bg-emerald-600 text-white hover:bg-emerald-700 flex-1 gap-2"
+                >
+                  <Smartphone className="h-4 w-4" />
+                  Gerar PIX
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="btn btn-secondary flex-1"
                   disabled={actionLoading.submit}
@@ -1115,7 +1138,19 @@ ${order.status === 'ready'
               </div>
             </div>
 
-            <div className="mt-8 flex gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button
+                onClick={() => {
+                  const balance = (viewingOrder.totalValue || 0) - (viewingOrder.downPayment || 0) - (viewingOrder.finalPayment || 0);
+                  setPixAmount(balance > 0 ? balance : viewingOrder.totalValue || 0);
+                  setPixDescription(`Pagamento O.S. ${viewingOrder.model}`);
+                  setIsPixModalOpen(true);
+                }}
+                className="btn bg-emerald-600 text-white hover:bg-emerald-700 flex-1 gap-2"
+              >
+                <Smartphone className="h-4 w-4" />
+                Cobrar PIX
+              </button>
               <button
                 onClick={() => setViewingOrder(null)}
                 className="btn btn-secondary flex-1"
@@ -1135,6 +1170,14 @@ ${order.status === 'ready'
           </div>
         </div>
       )}
+
+      <PixQRCodeModal
+        isOpen={isPixModalOpen}
+        onClose={() => setIsPixModalOpen(false)}
+        amount={pixAmount}
+        description={pixDescription}
+        transactionId={viewingOrder?.id.slice(-6).toUpperCase() || 'OS'}
+      />
     </div>
   );
 }

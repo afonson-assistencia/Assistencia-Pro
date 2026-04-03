@@ -6,6 +6,9 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 interface BusinessSettings {
   name: string;
   logoUrl: string;
+  pixKey?: string;
+  pixCity?: string;
+  pixName?: string;
 }
 
 interface SettingsContextType {
@@ -20,6 +23,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<BusinessSettings>({
     name: 'Assistência Pro',
     logoUrl: '/logo.png',
+    pixKey: '',
+    pixCity: '',
+    pixName: '',
   });
   const [loading, setLoading] = useState(true);
 
