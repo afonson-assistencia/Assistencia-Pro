@@ -11,12 +11,15 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { UserProfile, UserRole } from '../types';
 import { Plus, Trash2 } from 'lucide-react';
 
+import { maskPhone, maskCPF, maskCNPJ } from '../utils/masks';
+
 export default function Settings() {
   const { settings, updateSettings, loading: settingsLoading } = useSettings();
   const { profile } = useAuth();
   const [name, setName] = useState(settings.name);
   const [logoUrl, setLogoUrl] = useState(settings.logoUrl);
   const [pixKey, setPixKey] = useState(settings.pixKey || '');
+  const [pixKeyType, setPixKeyType] = useState<'cpf' | 'cnpj' | 'email' | 'phone' | 'random'>('phone');
   const [pixCity, setPixCity] = useState(settings.pixCity || '');
   const [pixName, setPixName] = useState(settings.pixName || '');
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +31,26 @@ export default function Settings() {
     setName(settings.name);
     setLogoUrl(settings.logoUrl);
     setPixKey(settings.pixKey || '');
+    
+    // Attempt to detect key type
+    const key = settings.pixKey || '';
+    if (key.includes('@')) setPixKeyType('email');
+    else if (key.length > 30) setPixKeyType('random');
+    else if (key.replace(/\D/g, '').length === 11) setPixKeyType('cpf');
+    else if (key.replace(/\D/g, '').length === 14) setPixKeyType('cnpj');
+    else setPixKeyType('phone');
+
     setPixCity(settings.pixCity || '');
     setPixName(settings.pixName || '');
   }, [settings]);
+
+  const handlePixKeyChange = (value: string) => {
+    let masked = value;
+    if (pixKeyType === 'phone') masked = maskPhone(value);
+    else if (pixKeyType === 'cpf') masked = maskCPF(value);
+    else if (pixKeyType === 'cnpj') masked = maskCNPJ(value);
+    setPixKey(masked);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -164,19 +184,43 @@ export default function Settings() {
                   Configuração de PIX
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Chave PIX</label>
-                    <input
-                      type="text"
-                      className={`input ${pixKey && (pixKey.length < 10 && !pixKey.includes('@')) ? 'border-amber-500 focus:ring-amber-500' : ''}`}
-                      placeholder="CPF, CNPJ, Email ou Celular com DDD"
-                      value={pixKey}
-                      onChange={(e) => setPixKey(e.target.value)}
-                    />
-                    {pixKey && pixKey.length > 0 && pixKey.length < 10 && !pixKey.includes('@') && (
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Tipo de Chave PIX</label>
+                    <div className="flex gap-2">
+                      <select
+                        className="input w-1/3"
+                        value={pixKeyType}
+                        onChange={(e) => {
+                          setPixKeyType(e.target.value as any);
+                          setPixKey('');
+                        }}
+                      >
+                        <option value="phone">Celular</option>
+                        <option value="cpf">CPF</option>
+                        <option value="cnpj">CNPJ</option>
+                        <option value="email">E-mail</option>
+                        <option value="random">Chave Aleatória</option>
+                      </select>
+                      <div className="flex-1">
+                        <input
+                          type={pixKeyType === 'email' ? 'email' : 'text'}
+                          className={`input ${pixKey && (pixKeyType === 'phone' && pixKey.length < 14) ? 'border-amber-500 focus:ring-amber-500' : ''}`}
+                          placeholder={
+                            pixKeyType === 'phone' ? '(00) 00000-0000' :
+                            pixKeyType === 'cpf' ? '000.000.000-00' :
+                            pixKeyType === 'cnpj' ? '00.000.000/0000-00' :
+                            pixKeyType === 'email' ? 'seu@email.com' :
+                            'Chave aleatória'
+                          }
+                          value={pixKey}
+                          onChange={(e) => handlePixKeyChange(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    {pixKeyType === 'phone' && pixKey && pixKey.length > 0 && pixKey.length < 14 && (
                       <p className="mt-1 text-[10px] text-amber-600 font-medium flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
-                        Chave muito curta. Para celular, use DDD + Número (Ex: 98987327719)
+                        O número deve ter o DDD e os 9 dígitos (Ex: (98) 98732-7719)
                       </p>
                     )}
                   </div>
@@ -190,7 +234,7 @@ export default function Settings() {
                       onChange={(e) => setPixName(e.target.value)}
                     />
                   </div>
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Cidade</label>
                     <input
                       type="text"
