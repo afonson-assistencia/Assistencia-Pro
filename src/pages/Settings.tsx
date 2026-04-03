@@ -168,11 +168,17 @@ export default function Settings() {
                     <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Chave PIX</label>
                     <input
                       type="text"
-                      className="input"
-                      placeholder="CPF, CNPJ, Email ou Aleatória"
+                      className={`input ${pixKey && (pixKey.length < 10 && !pixKey.includes('@')) ? 'border-amber-500 focus:ring-amber-500' : ''}`}
+                      placeholder="CPF, CNPJ, Email ou Celular com DDD"
                       value={pixKey}
                       onChange={(e) => setPixKey(e.target.value)}
                     />
+                    {pixKey && pixKey.length > 0 && pixKey.length < 10 && !pixKey.includes('@') && (
+                      <p className="mt-1 text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Chave muito curta. Para celular, use DDD + Número (Ex: 98987327719)
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Nome do Beneficiário</label>
