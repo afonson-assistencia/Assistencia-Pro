@@ -61,17 +61,79 @@ export default function DeliveryManagement() {
     return statusFilter === 'all' || run.status === statusFilter;
   });
 
-  const totalPending = baseFilteredRuns
+  const globalFilteredRuns = runs.filter(run => {
+    return selectedMotoboy === 'all' || run.motoboyName === selectedMotoboy;
+  });
+
+  const globalTotalPending = globalFilteredRuns
     .filter(r => r.status === 'pending')
     .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
 
-  const totalApproved = baseFilteredRuns
+  const globalTotalApproved = globalFilteredRuns
     .filter(r => r.status === 'approved')
     .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
 
-  const totalPaid = baseFilteredRuns
+  const globalTotalPaid = globalFilteredRuns
     .filter(r => r.status === 'paid')
     .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
+
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payingMotoboyId, setPayingMotoboyId] = useState('');
+
+  const handlePayByAmount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payingMotoboyId || !payAmount || parseFloat(payAmount) <= 0) return;
+
+    setLoading(prev => ({ ...prev, paying: true }));
+    try {
+      const amountToPay = parseFloat(payAmount);
+      let remaining = amountToPay;
+
+      // Get approved runs for this motoboy, oldest first
+      const motoboyRuns = runs
+        .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+        .sort((a, b) => {
+          const dateA = a.createdAt?.toDate?.() || new Date(0);
+          const dateB = b.createdAt?.toDate?.() || new Date(0);
+          return dateA.getTime() - dateB.getTime();
+        });
+
+      const batch = writeBatch(db);
+      const timestamp = serverTimestamp();
+      let paidCount = 0;
+
+      for (const run of motoboyRuns) {
+        const runValue = run.totalValue || run.value;
+        if (remaining >= runValue) {
+          batch.update(doc(db, 'deliveryRuns', run.id), {
+            status: 'paid',
+            paidAt: timestamp
+          });
+          remaining -= runValue;
+          paidCount++;
+        } else {
+          // If we can't pay the full run, we stop here for now to keep it simple
+          // (Partial payments are complex to track without a transaction log)
+          break;
+        }
+      }
+
+      if (paidCount > 0) {
+        await batch.commit();
+        alert(`${paidCount} corridas marcadas como pagas.`);
+      } else {
+        alert('O valor informado é menor que a corrida mais antiga aprovada.');
+      }
+
+      setIsPayModalOpen(false);
+      setPayAmount('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'deliveryRuns/pay');
+    } finally {
+      setLoading(prev => ({ ...prev, paying: false }));
+    }
+  };
 
   if (profile?.role === 'motoboy') {
     return <Navigate to="/motoboy-dashboard" />;
@@ -451,37 +513,47 @@ export default function DeliveryManagement() {
                 <Clock className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-[var(--text-muted)]">Total Corridas</p>
-                <p className="text-xl font-bold">{filteredRuns.reduce((acc, r) => acc + (r.quantity || 1), 0)}</p>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Total Corridas</p>
+                <p className="text-xl font-bold">{globalFilteredRuns.reduce((acc, r) => acc + (r.quantity || 1), 0)}</p>
               </div>
             </div>
-            <div className="card p-4 flex items-center gap-4">
+            <div className="card p-4 flex items-center gap-4 border-yellow-200">
               <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
                 <Clock className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-[var(--text-muted)]">Pendente Aprovação</p>
-                <p className="text-xl font-bold text-yellow-600">R$ {totalPending.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Pendente Aprovação</p>
+                <p className="text-xl font-bold text-yellow-600">R$ {globalTotalPending.toFixed(2)}</p>
               </div>
             </div>
-            <div className="card p-4 flex items-center gap-4">
+            <div className="card p-4 flex items-center gap-4 border-emerald-200">
               <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
                 <DollarSign className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-[var(--text-muted)]">Total a Pagar</p>
-                <p className="text-xl font-bold text-emerald-600">R$ {totalApproved.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Total a Pagar</p>
+                <p className="text-xl font-bold text-emerald-600">R$ {globalTotalApproved.toFixed(2)}</p>
               </div>
             </div>
-            <div className="card p-4 flex items-center gap-4">
+            <div className="card p-4 flex items-center gap-4 border-blue-200">
               <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
                 <CheckCircle className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm text-[var(--text-muted)]">Total Pago</p>
-                <p className="text-xl font-bold text-blue-600">R$ {totalPaid.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Total Pago</p>
+                <p className="text-xl font-bold text-blue-600">R$ {globalTotalPaid.toFixed(2)}</p>
               </div>
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => setIsPayModalOpen(true)}
+              className="btn btn-primary bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+            >
+              <DollarSign className="h-4 w-4" />
+              Pagar Motoboy (Baixa por Valor)
+            </button>
           </div>
 
           <div className="card overflow-hidden">
@@ -1101,6 +1173,82 @@ export default function DeliveryManagement() {
                   ) : (
                     'Cadastrar'
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Pagar Motoboy */}
+      {isPayModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl p-6 shadow-2xl border border-[var(--border-color)] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Dar Baixa em Pagamento</h2>
+              <button onClick={() => setIsPayModalOpen(false)} className="text-[var(--text-muted)]">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePayByAmount} className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-[var(--text-muted)] block mb-1">Selecionar Motoboy</label>
+                <select
+                  className="input w-full"
+                  value={payingMotoboyId}
+                  onChange={(e) => setPayingMotoboyId(e.target.value)}
+                  required
+                >
+                  <option value="">Selecose o motoboy...</option>
+                  {motoboys.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {payingMotoboyId && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase">Saldo Aprovado Atual</p>
+                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                    R$ {runs
+                      .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+                      .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0)
+                      .toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-semibold text-[var(--text-muted)] block mb-1">Valor do Pagamento (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="input w-full text-lg font-bold"
+                  placeholder="0.00"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  required
+                />
+                <p className="mt-1 text-[10px] text-[var(--text-muted)] italic">
+                  * O sistema dará baixa nas corridas aprovadas mais antigas até atingir este valor.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsPayModalOpen(false)}
+                  className="btn btn-secondary flex-1"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading.paying || !payingMotoboyId || !payAmount}
+                  className="btn btn-primary flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                >
+                  {loading.paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+                  Confirmar Pagamento
                 </button>
               </div>
             </form>
