@@ -76,7 +76,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (userDoc.exists()) {
             const data = userDoc.data();
             const isAdminEmail = (email: string | null) => {
-              return email?.toLowerCase() === 'admintec@gmail.com';
+              const lowerEmail = email?.toLowerCase();
+              return lowerEmail === 'admintec@gmail.com' || lowerEmail === 'afonsocnj@gmail.com';
             };
 
             if (isAdminEmail(firebaseUser.email)) {
@@ -97,7 +98,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
           } else {
             const isAdminEmail = (email: string | null) => {
-              return email?.toLowerCase() === 'admintec@gmail.com';
+              const lowerEmail = email?.toLowerCase();
+              return lowerEmail === 'admintec@gmail.com' || lowerEmail === 'afonsocnj@gmail.com';
             };
 
             const newProfile = {

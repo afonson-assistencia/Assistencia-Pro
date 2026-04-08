@@ -98,7 +98,10 @@ export default function DeliveryManagement() {
   const handleAutoSelectByValue = (value: string) => {
     setPayAmount(value);
     const amount = parseFloat(value);
-    if (isNaN(amount) || !payingMotoboyId) return;
+    if (isNaN(amount) || !payingMotoboyId || amount <= 0) {
+      setSelectedRunsToPay([]);
+      return;
+    }
 
     const approvedRuns = runs
       .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
@@ -111,12 +114,11 @@ export default function DeliveryManagement() {
     let currentSum = 0;
     const selectedIds: string[] = [];
     for (const run of approvedRuns) {
-      const runVal = run.totalValue || run.value;
-      if (currentSum + runVal <= amount) {
+      const runVal = run.totalValue || (run.value * (run.quantity || 1));
+      // Use a small epsilon for float comparison
+      if (currentSum + runVal <= amount + 0.01) {
         currentSum += runVal;
         selectedIds.push(run.id);
-      } else {
-        break;
       }
     }
     setSelectedRunsToPay(selectedIds);
