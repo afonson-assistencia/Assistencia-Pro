@@ -88,7 +88,7 @@ export default function MotoboyDashboard() {
     .filter(r => r.status === 'approved')
     .reduce((acc, run) => acc + (run.totalValue || (run.value * run.quantity)), 0);
 
-  const totalUnpaidBalance = totalPendingApproval + totalApprovedToReceive;
+  const totalToReceive = totalPendingApproval + totalApprovedToReceive;
 
   const handleAddRun = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -273,31 +273,31 @@ export default function MotoboyDashboard() {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card p-4 flex items-center gap-4 bg-black border-yellow-400">
-          <div className="p-3 bg-yellow-400 text-black rounded-lg">
+        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-yellow-500 shadow-lg shadow-yellow-500/10">
+          <div className="p-3 bg-yellow-500 text-black rounded-lg">
             <DollarSign className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-[10px] text-zinc-400 uppercase font-bold">Total a Receber</p>
-            <p className="text-xl font-bold text-yellow-400">R$ {totalUnpaidBalance.toFixed(2)}</p>
+            <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">Total a Receber</p>
+            <p className="text-2xl font-black text-yellow-500">R$ {totalToReceive.toFixed(2)}</p>
           </div>
         </div>
-        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-emerald-500">
+        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-emerald-500 shadow-lg shadow-emerald-500/10">
           <div className="p-3 bg-emerald-500 text-white rounded-lg">
             <CheckCircle className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-[10px] text-zinc-400 uppercase font-bold">Aprovado p/ Pagar</p>
-            <p className="text-xl font-bold text-emerald-500">R$ {totalApprovedToReceive.toFixed(2)}</p>
+            <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">Aprovado p/ Pagar</p>
+            <p className="text-2xl font-black text-emerald-500">R$ {totalApprovedToReceive.toFixed(2)}</p>
           </div>
         </div>
-        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-blue-500">
+        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10">
           <div className="p-3 bg-blue-500 text-white rounded-lg">
             <Clock className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-[10px] text-zinc-400 uppercase font-bold">Aguardando Aprovação</p>
-            <p className="text-xl font-bold text-blue-500">R$ {totalPendingApproval.toFixed(2)}</p>
+            <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">Aguardando Aprovação</p>
+            <p className="text-2xl font-black text-blue-500">R$ {totalPendingApproval.toFixed(2)}</p>
           </div>
         </div>
       </div>

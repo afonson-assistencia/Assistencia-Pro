@@ -80,53 +80,68 @@ export default function DeliveryManagement() {
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [payingMotoboyId, setPayingMotoboyId] = useState('');
+  const [selectedRunsToPay, setSelectedRunsToPay] = useState<string[]>([]);
 
-  const handlePayByAmount = async (e: React.FormEvent) => {
+  const handleToggleRunSelection = (runId: string) => {
+    setSelectedRunsToPay(prev => 
+      prev.includes(runId) ? prev.filter(id => id !== runId) : [...prev, runId]
+    );
+  };
+
+  const handleSelectAllApproved = () => {
+    const approvedIds = runs
+      .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+      .map(r => r.id);
+    setSelectedRunsToPay(approvedIds);
+  };
+
+  const handleAutoSelectByValue = (value: string) => {
+    setPayAmount(value);
+    const amount = parseFloat(value);
+    if (isNaN(amount) || !payingMotoboyId) return;
+
+    const approvedRuns = runs
+      .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+      .sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateA.getTime() - dateB.getTime();
+      });
+
+    let currentSum = 0;
+    const selectedIds: string[] = [];
+    for (const run of approvedRuns) {
+      const runVal = run.totalValue || run.value;
+      if (currentSum + runVal <= amount) {
+        currentSum += runVal;
+        selectedIds.push(run.id);
+      } else {
+        break;
+      }
+    }
+    setSelectedRunsToPay(selectedIds);
+  };
+
+  const handleConfirmPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!payingMotoboyId || !payAmount || parseFloat(payAmount) <= 0) return;
+    if (selectedRunsToPay.length === 0) return;
 
     setLoading(prev => ({ ...prev, paying: true }));
     try {
-      const amountToPay = parseFloat(payAmount);
-      let remaining = amountToPay;
-
-      // Get approved runs for this motoboy, oldest first
-      const motoboyRuns = runs
-        .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
-        .sort((a, b) => {
-          const dateA = a.createdAt?.toDate?.() || new Date(0);
-          const dateB = b.createdAt?.toDate?.() || new Date(0);
-          return dateA.getTime() - dateB.getTime();
-        });
-
       const batch = writeBatch(db);
       const timestamp = serverTimestamp();
-      let paidCount = 0;
+      
+      selectedRunsToPay.forEach(runId => {
+        batch.update(doc(db, 'deliveryRuns', runId), {
+          status: 'paid',
+          paidAt: timestamp
+        });
+      });
 
-      for (const run of motoboyRuns) {
-        const runValue = run.totalValue || run.value;
-        if (remaining >= runValue) {
-          batch.update(doc(db, 'deliveryRuns', run.id), {
-            status: 'paid',
-            paidAt: timestamp
-          });
-          remaining -= runValue;
-          paidCount++;
-        } else {
-          // If we can't pay the full run, we stop here for now to keep it simple
-          // (Partial payments are complex to track without a transaction log)
-          break;
-        }
-      }
-
-      if (paidCount > 0) {
-        await batch.commit();
-        alert(`${paidCount} corridas marcadas como pagas.`);
-      } else {
-        alert('O valor informado é menor que a corrida mais antiga aprovada.');
-      }
-
+      await batch.commit();
+      alert(`${selectedRunsToPay.length} corridas marcadas como pagas com sucesso!`);
       setIsPayModalOpen(false);
+      setSelectedRunsToPay([]);
       setPayAmount('');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'deliveryRuns/pay');
@@ -1182,76 +1197,134 @@ export default function DeliveryManagement() {
       {/* Modal Pagar Motoboy */}
       {isPayModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[var(--bg-card)] rounded-2xl p-6 shadow-2xl border border-[var(--border-color)] animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-2xl bg-[var(--bg-card)] rounded-2xl p-6 shadow-2xl border border-[var(--border-color)] animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Dar Baixa em Pagamento</h2>
+              <div>
+                <h2 className="text-xl font-bold">Dar Baixa em Pagamentos</h2>
+                <p className="text-xs text-[var(--text-muted)]">Selecione as corridas ou informe um valor para auto-seleção.</p>
+              </div>
               <button onClick={() => setIsPayModalOpen(false)} className="text-[var(--text-muted)]">
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
 
-            <form onSubmit={handlePayByAmount} className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold text-[var(--text-muted)] block mb-1">Selecionar Motoboy</label>
-                <select
-                  className="input w-full"
-                  value={payingMotoboyId}
-                  onChange={(e) => setPayingMotoboyId(e.target.value)}
-                  required
-                >
-                  <option value="">Selecose o motoboy...</option>
-                  {motoboys.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
+            <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-[var(--text-muted)] block mb-1">Motoboy</label>
+                  <select
+                    className="input w-full"
+                    value={payingMotoboyId}
+                    onChange={(e) => {
+                      setPayingMotoboyId(e.target.value);
+                      setSelectedRunsToPay([]);
+                      setPayAmount('');
+                    }}
+                    required
+                  >
+                    <option value="">Selecione o motoboy...</option>
+                    {motoboys.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-[var(--text-muted)] block mb-1">Auto-selecionar por Valor (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input w-full"
+                    placeholder="Ex: 50.00"
+                    value={payAmount}
+                    onChange={(e) => handleAutoSelectByValue(e.target.value)}
+                  />
+                </div>
               </div>
 
               {payingMotoboyId && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase">Saldo Aprovado Atual</p>
-                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                    R$ {runs
+                <>
+                  <div className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <div>
+                      <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Total Selecionado</p>
+                      <p className="text-xl font-black text-emerald-600">
+                        R$ {runs
+                          .filter(r => selectedRunsToPay.includes(r.id))
+                          .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0)
+                          .toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Corridas</p>
+                      <p className="text-xl font-black">{selectedRunsToPay.length}</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={handleSelectAllApproved}
+                      className="text-xs font-bold text-blue-600 hover:underline"
+                    >
+                      Selecionar Tudo
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                    {runs
                       .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
-                      .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0)
-                      .toFixed(2)}
-                  </p>
-                </div>
+                      .sort((a, b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
+                      .map(run => (
+                        <div 
+                          key={run.id}
+                          onClick={() => handleToggleRunSelection(run.id)}
+                          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
+                            selectedRunsToPay.includes(run.id)
+                              ? 'bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20'
+                              : 'bg-[var(--bg-main)] border-[var(--border-color)] hover:border-zinc-400'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                            selectedRunsToPay.includes(run.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-zinc-300'
+                          }`}>
+                            {selectedRunsToPay.includes(run.id) && <CheckCircle className="h-4 w-4" />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-sm">{run.locationName}</span>
+                              <span className="font-black text-emerald-600">R$ {(run.totalValue || run.value).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] text-[var(--text-muted)]">
+                              <span>{run.createdAt?.toDate ? format(run.createdAt.toDate(), 'dd/MM/yyyy HH:mm') : 'Data N/A'}</span>
+                              <span>Qtd: {run.quantity}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    {runs.filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved').length === 0 && (
+                      <div className="text-center py-10 text-[var(--text-muted)]">
+                        Nenhuma corrida aprovada pendente de pagamento para este motoboy.
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
+            </div>
 
-              <div>
-                <label className="text-sm font-semibold text-[var(--text-muted)] block mb-1">Valor do Pagamento (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="input w-full text-lg font-bold"
-                  placeholder="0.00"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  required
-                />
-                <p className="mt-1 text-[10px] text-[var(--text-muted)] italic">
-                  * O sistema dará baixa nas corridas aprovadas mais antigas até atingir este valor.
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsPayModalOpen(false)}
-                  className="btn btn-secondary flex-1"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading.paying || !payingMotoboyId || !payAmount}
-                  className="btn btn-primary flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-                >
-                  {loading.paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
-                  Confirmar Pagamento
-                </button>
-              </div>
-            </form>
+            <div className="flex gap-3 pt-6 border-t border-[var(--border-color)] mt-4">
+              <button
+                type="button"
+                onClick={() => setIsPayModalOpen(false)}
+                className="btn btn-secondary flex-1"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmPayment}
+                disabled={loading.paying || selectedRunsToPay.length === 0}
+                className="btn btn-primary flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              >
+                {loading.paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
+                Confirmar Pagamento ({selectedRunsToPay.length})
+              </button>
+            </div>
           </div>
         </div>
       )}
