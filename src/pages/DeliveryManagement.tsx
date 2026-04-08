@@ -61,6 +61,10 @@ export default function DeliveryManagement() {
     return statusFilter === 'all' || run.status === statusFilter;
   });
 
+  const totalPending = baseFilteredRuns
+    .filter(r => r.status === 'pending')
+    .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
+
   const totalApproved = baseFilteredRuns
     .filter(r => r.status === 'approved')
     .reduce((acc, curr) => acc + (curr.totalValue || curr.value), 0);
@@ -441,7 +445,7 @@ export default function DeliveryManagement() {
               </div>
             )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="card p-4 flex items-center gap-4">
               <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
                 <Clock className="h-6 w-6" />
@@ -449,6 +453,15 @@ export default function DeliveryManagement() {
               <div>
                 <p className="text-sm text-[var(--text-muted)]">Total Corridas</p>
                 <p className="text-xl font-bold">{filteredRuns.reduce((acc, r) => acc + (r.quantity || 1), 0)}</p>
+              </div>
+            </div>
+            <div className="card p-4 flex items-center gap-4">
+              <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
+                <Clock className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-[var(--text-muted)]">Pendente Aprovação</p>
+                <p className="text-xl font-bold text-yellow-600">R$ {totalPending.toFixed(2)}</p>
               </div>
             </div>
             <div className="card p-4 flex items-center gap-4">

@@ -13,7 +13,7 @@ export default function MotoboyDashboard() {
   const { user, profile, signOut } = useAuth();
   const [locations, setLocations] = useState<DeliveryLocation[]>([]);
   const [runs, setRuns] = useState<DeliveryRun[]>([]);
-  const [allPendingRuns, setAllPendingRuns] = useState<DeliveryRun[]>([]);
+  const [unpaidRuns, setUnpaidRuns] = useState<DeliveryRun[]>([]);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -59,28 +59,36 @@ export default function MotoboyDashboard() {
         setRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
       }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns'));
 
-      // Fetch ALL pending runs for this motoboy to calculate total balance
-      const qAllPending = query(
+      // Fetch ALL unpaid runs for this motoboy to calculate total balance
+      const qUnpaid = query(
         collection(db, 'deliveryRuns'),
         where('motoboyId', '==', profile.motoboyId),
-        where('status', '==', 'pending')
+        where('status', 'in', ['pending', 'approved'])
       );
-
-      const unsubscribeAllPending = onSnapshot(qAllPending, (snap) => {
-        setAllPendingRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
-      }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns/pending'));
-
+  
+      const unsubscribeUnpaid = onSnapshot(qUnpaid, (snap) => {
+        setUnpaidRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
+      }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns/unpaid'));
+  
       return () => {
         unsubscribeLocations();
         unsubscribeRuns();
-        unsubscribeAllPending();
+        unsubscribeUnpaid();
       };
     }
 
     return () => unsubscribeLocations();
   }, [profile.motoboyId, selectedDate]);
 
-  const totalPendingBalance = allPendingRuns.reduce((acc, run) => acc + (run.totalValue || (run.value * run.quantity)), 0);
+  const totalPendingApproval = unpaidRuns
+    .filter(r => r.status === 'pending')
+    .reduce((acc, run) => acc + (run.totalValue || (run.value * run.quantity)), 0);
+
+  const totalApprovedToReceive = unpaidRuns
+    .filter(r => r.status === 'approved')
+    .reduce((acc, run) => acc + (run.totalValue || (run.value * run.quantity)), 0);
+
+  const totalUnpaidBalance = totalPendingApproval + totalApprovedToReceive;
 
   const handleAddRun = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,23 +272,32 @@ export default function MotoboyDashboard() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card p-4 flex items-center gap-4 bg-black border-yellow-400">
           <div className="p-3 bg-yellow-400 text-black rounded-lg">
             <DollarSign className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm text-zinc-400">Saldo Pendente Total</p>
-            <p className="text-2xl font-bold text-yellow-400">R$ {totalPendingBalance.toFixed(2)}</p>
+            <p className="text-[10px] text-zinc-400 uppercase font-bold">Total a Receber</p>
+            <p className="text-xl font-bold text-yellow-400">R$ {totalUnpaidBalance.toFixed(2)}</p>
           </div>
         </div>
-        <div className="card p-4 flex items-center gap-4">
-          <div className="p-3 bg-blue-100 text-blue-600 rounded-lg dark:bg-blue-900/30 dark:text-blue-400">
-            <Bike className="h-6 w-6" />
+        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-emerald-500">
+          <div className="p-3 bg-emerald-500 text-white rounded-lg">
+            <CheckCircle className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-sm text-[var(--text-muted)]">Corridas Hoje</p>
-            <p className="text-2xl font-bold text-[var(--text-main)]">{runs.reduce((acc, r) => acc + (r.quantity || 1), 0)}</p>
+            <p className="text-[10px] text-zinc-400 uppercase font-bold">Aprovado p/ Pagar</p>
+            <p className="text-xl font-bold text-emerald-500">R$ {totalApprovedToReceive.toFixed(2)}</p>
+          </div>
+        </div>
+        <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-blue-500">
+          <div className="p-3 bg-blue-500 text-white rounded-lg">
+            <Clock className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-[10px] text-zinc-400 uppercase font-bold">Aguardando Aprovação</p>
+            <p className="text-xl font-bold text-blue-500">R$ {totalPendingApproval.toFixed(2)}</p>
           </div>
         </div>
       </div>
