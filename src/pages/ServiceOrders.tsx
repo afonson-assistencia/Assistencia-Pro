@@ -5,7 +5,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
 import { Plus, Search, Filter, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical, CheckCircle2, Clock, DollarSign, ShieldCheck } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
-import { format, addDays } from 'date-fns';
+import { format, addDays, startOfMonth, endOfMonth, isWithinInterval, subMonths, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { sendToN8N } from '../services/n8nService';
 import { maskPhone } from '../utils/masks';
@@ -13,7 +13,8 @@ import { getWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import PixQRCodeModal from '../components/PixQRCodeModal';
-import { Smartphone } from 'lucide-react';
+import { Smartphone, TrendingUp, BarChart3, PieChart, CalendarDays, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function ServiceOrders() {
   const { user, profile } = useAuth();
@@ -55,6 +56,8 @@ export default function ServiceOrders() {
   const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const [actionMenuOrder, setActionMenuOrder] = useState<ServiceOrder | null>(null);
+
+  const [showDashboard, setShowDashboard] = useState(true);
 
   const getCustomerInfo = (order: ServiceOrder) => {
     const customer = customers.find(c => c.id === order.customerId);
@@ -421,8 +424,37 @@ ${order.status === 'ready'
     .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
 
   const totalPendingValue = orders
-    .filter(o => o.status === 'pending')
+    .filter(o => o.status !== 'delivered' && o.status !== 'cancelled')
     .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+
+  // Dashboard Calculations
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+
+  const currentMonthOrders = orders.filter(o => {
+    const date = o.deliveredAt?.toDate ? o.deliveredAt.toDate() : (o.createdAt?.toDate ? o.createdAt.toDate() : null);
+    if (!date) return false;
+    return isWithinInterval(date, { start: monthStart, end: monthEnd });
+  });
+
+  const currentMonthRevenue = currentMonthOrders
+    .filter(o => o.status === 'delivered')
+    .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+
+  const currentMonthCount = currentMonthOrders.filter(o => o.status === 'delivered').length;
+  const averageTicket = currentMonthCount > 0 ? currentMonthRevenue / currentMonthCount : 0;
+
+  // Last 6 months data for chart
+  const chartData = Array.from({ length: 6 }).map((_, i) => {
+    const monthDate = subMonths(now, 5 - i);
+    const monthName = format(monthDate, 'MMM', { locale: ptBR });
+    const revenue = orders
+      .filter(o => o.status === 'delivered' && o.deliveredAt?.toDate && isSameMonth(o.deliveredAt.toDate(), monthDate))
+      .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+    
+    return { name: monthName.toUpperCase(), valor: revenue };
+  }).filter(d => d.valor > 0 || true); // Keep all for better chart look
 
   const isWarrantyExpired = (order: ServiceOrder) => {
     if (order.status !== 'delivered' || !order.deliveredAt || !order.warrantyDays) return false;
@@ -448,6 +480,13 @@ ${order.status === 'ready'
           <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie os consertos em andamento.</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button 
+            onClick={() => setShowDashboard(!showDashboard)} 
+            className={`btn gap-2 flex-1 sm:flex-none ${showDashboard ? 'btn-secondary' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>{showDashboard ? 'Ocultar Dashboard' : 'Ver Dashboard'}</span>
+          </button>
           <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn btn-primary gap-2 flex-1 sm:flex-none">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nova O.S.</span>
@@ -456,31 +495,150 @@ ${order.status === 'ready'
         </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-        <div className="card p-4 sm:p-6 bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Concluído (Entregue)</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">R$ {totalDeliveredValue.toFixed(2)}</p>
+      {showDashboard && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+          {/* Stats Grid */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="card p-5 border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Faturamento Mensal</span>
+                <TrendingUp className="h-4 w-4 text-blue-500" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-[var(--text-main)]">R$ {currentMonthRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1 flex items-center gap-1">
+                <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                Referente a {format(now, 'MMMM', { locale: ptBR })}
+              </p>
             </div>
-            <div className="rounded-full p-3 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-          </div>
-        </div>
 
-        <div className="card p-4 sm:p-6 bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">Total Pendente</p>
-              <p className="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-300">R$ {totalPendingValue.toFixed(2)}</p>
+            <div className="card p-5 border-l-4 border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-900/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">O.S. Concluídas</span>
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-[var(--text-main)]">{currentMonthCount}</span>
+                <span className="text-xs text-[var(--text-muted)]">unidades</span>
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Total entregue este mês</p>
             </div>
-            <div className="rounded-full p-3 bg-amber-100 dark:bg-amber-900/20 text-amber-600">
-              <Clock className="h-6 w-6" />
+
+            <div className="card p-5 border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-900/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Ticket Médio</span>
+                <DollarSign className="h-4 w-4 text-amber-500" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-[var(--text-main)]">R$ {averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Média por serviço concluído</p>
+            </div>
+
+            <div className="card p-5 border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-900/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">Valor em Aberto</span>
+                <Clock className="h-4 w-4 text-purple-500" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-[var(--text-main)]">R$ {totalPendingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Total de O.S. não finalizadas</p>
+            </div>
+          </div>
+
+          {/* Chart Section */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="font-bold text-[var(--text-main)]">Faturamento Semestral</h3>
+                  <p className="text-xs text-[var(--text-muted)]">Evolução dos últimos 6 meses</p>
+                </div>
+                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                </div>
+              </div>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 600, fill: 'var(--text-muted)' }} 
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fontWeight: 600, fill: 'var(--text-muted)' }}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                      contentStyle={{ 
+                        backgroundColor: 'var(--bg-card)', 
+                        borderColor: 'var(--border-color)',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        color: 'var(--text-main)'
+                      }}
+                      itemStyle={{ color: '#3b82f6' }}
+                      formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
+                    />
+                    <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={40}>
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={index === chartData.length - 1 ? '#3b82f6' : 'rgba(59, 130, 246, 0.4)'} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="card p-6 flex flex-col">
+              <h3 className="font-bold text-[var(--text-main)] mb-1">Distribuição de Status</h3>
+              <p className="text-xs text-[var(--text-muted)] mb-6">Visão geral das ordens ativas</p>
+              
+              <div className="space-y-4 flex-1">
+                {Object.entries(STATUS_LABELS).map(([status, label]) => {
+                  const count = orders.filter(o => o.status === status).length;
+                  const percentage = orders.length > 0 ? (count / orders.length) * 100 : 0;
+                  const colorClass = STATUS_COLORS[status as OSStatus].split(' ')[0]; // Get bg color
+                  
+                  return (
+                    <div key={status} className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-[var(--text-main)]">{label}</span>
+                        <span className="text-[var(--text-muted)]">{count} ({percentage.toFixed(0)}%)</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-1000 ${colorClass}`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--text-muted)] font-medium">Total de Ordens</span>
+                  <span className="font-black text-[var(--text-main)]">{orders.length}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col gap-4 sm:flex-row items-center">
         <div className="flex-1 w-full">

@@ -88,11 +88,11 @@ export default function DeliveryManagement() {
     );
   };
 
-  const handleSelectAllApproved = () => {
-    const approvedIds = runs
-      .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+  const handleSelectAllUnpaid = () => {
+    const unpaidIds = runs
+      .filter(r => r.motoboyId === payingMotoboyId && (r.status === 'approved' || r.status === 'pending'))
       .map(r => r.id);
-    setSelectedRunsToPay(approvedIds);
+    setSelectedRunsToPay(unpaidIds);
   };
 
   const handleAutoSelectByValue = (value: string) => {
@@ -103,8 +103,8 @@ export default function DeliveryManagement() {
       return;
     }
 
-    const approvedRuns = runs
-      .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+    const unpaidRuns = runs
+      .filter(r => r.motoboyId === payingMotoboyId && (r.status === 'approved' || r.status === 'pending'))
       .sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(0);
         const dateB = b.createdAt?.toDate?.() || new Date(0);
@@ -113,7 +113,7 @@ export default function DeliveryManagement() {
 
     let currentSum = 0;
     const selectedIds: string[] = [];
-    for (const run of approvedRuns) {
+    for (const run of unpaidRuns) {
       const runVal = run.totalValue || (run.value * (run.quantity || 1));
       // Use a small epsilon for float comparison
       if (currentSum + runVal <= amount + 0.01) {
@@ -1262,7 +1262,7 @@ export default function DeliveryManagement() {
                     </div>
                     <button 
                       type="button"
-                      onClick={handleSelectAllApproved}
+                      onClick={handleSelectAllUnpaid}
                       className="text-xs font-bold text-blue-600 hover:underline"
                     >
                       Selecionar Tudo
@@ -1271,7 +1271,7 @@ export default function DeliveryManagement() {
 
                   <div className="flex-1 overflow-y-auto pr-2 space-y-2">
                     {runs
-                      .filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved')
+                      .filter(r => r.motoboyId === payingMotoboyId && (r.status === 'approved' || r.status === 'pending'))
                       .sort((a, b) => (b.createdAt?.toDate?.() || 0) - (a.createdAt?.toDate?.() || 0))
                       .map(run => (
                         <div 
@@ -1290,7 +1290,16 @@ export default function DeliveryManagement() {
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-center">
-                              <span className="font-bold text-sm">{run.locationName}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm">{run.locationName}</span>
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase ${
+                                  run.status === 'approved' 
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' 
+                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'
+                                }`}>
+                                  {run.status === 'approved' ? 'Aprovado' : 'Pendente'}
+                                </span>
+                              </div>
                               <span className="font-black text-emerald-600">R$ {(run.totalValue || run.value).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[10px] text-[var(--text-muted)]">
@@ -1300,9 +1309,9 @@ export default function DeliveryManagement() {
                           </div>
                         </div>
                       ))}
-                    {runs.filter(r => r.motoboyId === payingMotoboyId && r.status === 'approved').length === 0 && (
+                    {runs.filter(r => r.motoboyId === payingMotoboyId && (r.status === 'approved' || r.status === 'pending')).length === 0 && (
                       <div className="text-center py-10 text-[var(--text-muted)]">
-                        Nenhuma corrida aprovada pendente de pagamento para este motoboy.
+                        Nenhuma corrida pendente de pagamento para este motoboy.
                       </div>
                     )}
                   </div>
