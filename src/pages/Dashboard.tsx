@@ -4,10 +4,10 @@ import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ServiceOrder, Sale, Product, Expense, STATUS_LABELS, STATUS_COLORS } from '../types';
 import { ClipboardList, ShoppingCart, TrendingUp, AlertCircle, CheckCircle2, Clock, Calendar, DollarSign, Receipt, Package, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { format, startOfDay, startOfWeek, startOfMonth, subDays } from 'date-fns';
+import { format, startOfDay, startOfWeek, startOfMonth, subDays, isAfter, isBefore, addDays, subMonths, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, LineChart, Line, Legend } from 'recharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -23,6 +23,10 @@ export default function Dashboard() {
     monthProfit: 0,
   });
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
+  const [expiringOrders, setExpiringOrders] = useState<ServiceOrder[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [statusChartData, setStatusChartData] = useState<any[]>([]);
+  const [monthlyRevenueData, setMonthlyRevenueData] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [recentOrders, setRecentOrders] = useState<ServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +34,11 @@ export default function Dashboard() {
   useEffect(() => {
     const now = new Date();
     const todayS = startOfDay(now);
-    const weekS = startOfWeek(now, { weekStartsOn: 0 }); // Sunday
+    const weekS = startOfWeek(now, { weekStartsOn: 0 });
     const monthS = startOfMonth(now);
+    const sixMonthsAgo = startOfMonth(subMonths(now, 5));
+    const thirtyDaysAgo = subDays(now, 30);
+    const threeDaysFromNow = addDays(now, 3);
 
     let sales: Sale[] = [];
     let os: ServiceOrder[] = [];
@@ -61,6 +68,90 @@ export default function Dashboard() {
         dailyExpenses[dateStr] = 0;
       }
 
+      // 1. Expiring Orders (next 3 days, not delivered/cancelled)
+      const expiring = os.filter(order => {
+        if (order.status === 'delivered' || order.status === 'cancelled') return false;
+        if (!order.deadline) return false;
+        const deadlineDate = order.deadline instanceof Timestamp ? order.deadline.toDate() : new Date(order.deadline);
+        return isAfter(deadlineDate, now) && isBefore(deadlineDate, threeDaysFromNow);
+      });
+      setExpiringOrders(expiring);
+
+      // 2. Top 5 Products (last month)
+      const productSales: Record<string, { name: string, quantity: number, revenue: number }> = {};
+      sales.forEach(sale => {
+        const saleDate = sale.date instanceof Timestamp ? sale.date.toDate() : new Date(sale.date);
+        if (isAfter(saleDate, monthS)) {
+          sale.items.forEach(item => {
+            const key = item.productId || item.productName;
+            if (!productSales[key]) {
+              productSales[key] = { name: item.productName, quantity: 0, revenue: 0 };
+            }
+            productSales[key].quantity += item.quantity;
+            productSales[key].revenue += (item.price * item.quantity);
+          });
+        }
+      });
+      const sortedProducts = Object.values(productSales)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+      setTopProducts(sortedProducts);
+
+      // 3. OS Status Chart (last 30 days)
+      const statusCounts: Record<string, number> = {
+        'pending': 0,
+        'in-progress': 0,
+        'ready': 0,
+        'delivered': 0,
+        'cancelled': 0
+      };
+      os.forEach(order => {
+        const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+        if (isAfter(orderDate, thirtyDaysAgo)) {
+          if (statusCounts[order.status] !== undefined) {
+            statusCounts[order.status]++;
+          }
+        }
+      });
+      setStatusChartData(Object.entries(statusCounts).map(([status, count]) => ({
+        name: STATUS_LABELS[status as keyof typeof STATUS_LABELS] || status,
+        count,
+        status
+      })));
+
+      // 4. Monthly Revenue Chart (last 6 months)
+      const monthlyData: Record<string, { name: string, revenue: number, date: Date }> = {};
+      for (let i = 5; i >= 0; i--) {
+        const d = subMonths(now, i);
+        const key = format(d, 'yyyy-MM');
+        monthlyData[key] = {
+          name: format(d, 'MMM/yy', { locale: ptBR }),
+          revenue: 0,
+          date: d
+        };
+      }
+
+      sales.forEach(sale => {
+        const date = sale.date instanceof Timestamp ? sale.date.toDate() : new Date(sale.date);
+        const key = format(date, 'yyyy-MM');
+        if (monthlyData[key]) {
+          monthlyData[key].revenue += (sale.totalValue || 0);
+        }
+      });
+
+      os.forEach(order => {
+        if (order.status === 'delivered' && order.deliveredAt) {
+          const date = order.deliveredAt instanceof Timestamp ? order.deliveredAt.toDate() : new Date(order.deliveredAt);
+          const key = format(date, 'yyyy-MM');
+          if (monthlyData[key]) {
+            monthlyData[key].revenue += (order.totalValue || 0);
+          }
+        }
+      });
+
+      setMonthlyRevenueData(Object.values(monthlyData));
+
+      // Existing stats logic
       sales.forEach(data => {
         const date = data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date);
         const val = data.totalValue || 0;
@@ -70,7 +161,7 @@ export default function Dashboard() {
           todaySalesRev += val;
         }
         if (date >= weekS) weekRev += val;
-        monthRev += val;
+        if (date >= monthS) monthRev += val;
 
         const dateStr = format(date, 'yyyy-MM-dd');
         if (dailyRevenue[dateStr] !== undefined) {
@@ -83,22 +174,26 @@ export default function Dashboard() {
         const val = data.totalValue || 0;
         
         if (data.status === 'delivered') {
-          if (date >= todayS) {
-            todayRev += val;
-            todayOSRev += val;
-          }
-          if (date >= weekS) weekRev += val;
-          monthRev += val;
-          monthProductCosts += (data.productCost || 0);
+          const deliveredDate = data.deliveredAt instanceof Timestamp ? data.deliveredAt.toDate() : (data.deliveredAt ? new Date(data.deliveredAt) : null);
+          if (deliveredDate) {
+            if (deliveredDate >= todayS) {
+              todayRev += val;
+              todayOSRev += val;
+            }
+            if (deliveredDate >= weekS) weekRev += val;
+            if (deliveredDate >= monthS) {
+              monthRev += val;
+              monthProductCosts += (data.productCost || 0);
+            }
 
-          const dateStr = format(date, 'yyyy-MM-dd');
-          if (dailyRevenue[dateStr] !== undefined) {
-            dailyRevenue[dateStr] += val;
-          }
-          
-          // Also add product cost to daily expenses for the chart
-          if (dailyExpenses[dateStr] !== undefined) {
-            dailyExpenses[dateStr] += (data.productCost || 0);
+            const dateStr = format(deliveredDate, 'yyyy-MM-dd');
+            if (dailyRevenue[dateStr] !== undefined) {
+              dailyRevenue[dateStr] += val;
+            }
+            
+            if (dailyExpenses[dateStr] !== undefined) {
+              dailyExpenses[dateStr] += (data.productCost || 0);
+            }
           }
         }
       });
@@ -115,7 +210,7 @@ export default function Dashboard() {
         const date = data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date);
         const val = data.value || 0;
         
-        monthExp += val;
+        if (date >= monthS) monthExp += val;
 
         const dateStr = format(date, 'yyyy-MM-dd');
         if (dailyExpenses[dateStr] !== undefined) {
@@ -123,7 +218,6 @@ export default function Dashboard() {
         }
       });
 
-      // Prepare chart data
       const chartArr = Object.keys(dailyRevenue).map(date => ({
         name: format(new Date(date + 'T12:00:00'), 'dd/MM'),
         revenue: dailyRevenue[date],
@@ -147,12 +241,12 @@ export default function Dashboard() {
       setLoading(false);
     };
 
-    const unsubSales = onSnapshot(query(collection(db, 'sales'), where('date', '>=', Timestamp.fromDate(monthS))), (snap) => {
+    const unsubSales = onSnapshot(query(collection(db, 'sales'), where('date', '>=', Timestamp.fromDate(sixMonthsAgo))), (snap) => {
       sales = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sale));
       updateDashboard();
     }, (err) => handleFirestoreError(err, OperationType.GET, 'sales'));
 
-    const unsubOS = onSnapshot(query(collection(db, 'serviceOrders'), where('createdAt', '>=', Timestamp.fromDate(monthS))), (snap) => {
+    const unsubOS = onSnapshot(query(collection(db, 'serviceOrders'), where('createdAt', '>=', Timestamp.fromDate(sixMonthsAgo))), (snap) => {
       os = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
       updateDashboard();
     }, (err) => handleFirestoreError(err, OperationType.GET, 'serviceOrders'));
@@ -205,6 +299,36 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
         <p className="text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
       </div>
+
+      {/* Expiring Orders Alert */}
+      {expiringOrders.length > 0 && (
+        <div className="card border-amber-500 bg-amber-50/50 dark:bg-amber-900/10 p-4 sm:p-6">
+          <div className="pb-2">
+            <h2 className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-lg font-bold">
+              <Clock className="h-5 w-5" />
+              O.S. Próximas do Vencimento (3 dias)
+            </h2>
+          </div>
+          <div className="space-y-2">
+            {expiringOrders.map(order => (
+              <Link key={order.id} to="/service-orders" className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm dark:bg-slate-800 border border-[var(--border-color)] hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                <div>
+                  <p className="text-sm font-bold text-[var(--text-main)]">{order.customerName}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{order.model} • {order.problem}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-amber-600">
+                    Vence em: {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : ''}
+                  </p>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COLORS[order.status]}`}>
+                    {STATUS_LABELS[order.status]}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
@@ -343,38 +467,121 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions & Summary */}
-        <div className="space-y-6">
-          <div className="card p-4 sm:p-6">
-            <div className="pb-4">
-              <h2 className="text-lg font-semibold">Ações Rápidas</h2>
-            </div>
-            <div>
-              <div className="grid grid-cols-2 gap-3">
-                <QuickActionLink to="/service-orders" label="Nova O.S." icon={ClipboardList} />
-                <QuickActionLink to="/sales" label="Nova Venda" icon={ShoppingCart} />
-                <QuickActionLink to="/shopping-list" label="Lista Compras" icon={ShoppingCart} />
-                <QuickActionLink to="/inventory" label="Ver Estoque" icon={Package} />
-              </div>
-            </div>
+        {/* Monthly Revenue Line Chart */}
+        <div className="card p-4 sm:p-6">
+          <div className="pb-8">
+            <h2 className="text-lg font-semibold">Receita Mensal</h2>
+            <p className="text-xs text-[var(--text-muted)]">Últimos 6 meses (Vendas + O.S.)</p>
           </div>
-          
-          <div className="card bg-[var(--accent-primary)] dark:text-black text-white border-none shadow-lg p-4 sm:p-6">
-            <div>
-              <div className="flex items-center gap-3 mb-4 dark:text-black text-white">
-                <div className="rounded-full dark:bg-black/20 bg-white/20 p-2">
-                  <Package className="h-5 w-5" />
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlyRevenueData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                  tickFormatter={(value) => `R$ ${value}`}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-color)', 
+                    fontSize: '12px'
+                  }}
+                  formatter={(value: number) => [`R$ ${value.toFixed(2)}`]}
+                />
+                <Line type="monotone" dataKey="revenue" stroke="var(--accent-primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--accent-primary)' }} activeDot={{ r: 6 }} name="Receita" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* OS Status Bar Chart */}
+        <div className="card p-4 sm:p-6">
+          <div className="pb-8">
+            <h2 className="text-lg font-semibold">Status de O.S. (30 dias)</h2>
+            <p className="text-xs text-[var(--text-muted)]">Distribuição por status</p>
+          </div>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={statusChartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                <XAxis type="number" hide />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'var(--text-main)', fontSize: 12, fontWeight: 500 }}
+                  width={100}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'var(--bg-main)', opacity: 0.4 }}
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-color)', 
+                    fontSize: '12px'
+                  }}
+                />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} name="Quantidade">
+                  {statusChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={
+                      entry.status === 'pending' ? '#eab308' :
+                      entry.status === 'in-progress' ? '#3b82f6' :
+                      entry.status === 'ready' ? '#22c55e' :
+                      entry.status === 'delivered' ? '#64748b' :
+                      '#ef4444'
+                    } />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top 5 Products */}
+        <div className="card p-4 sm:p-6">
+          <div className="pb-4">
+            <h2 className="text-lg font-semibold">Top 5 Produtos (Mês)</h2>
+            <p className="text-xs text-[var(--text-muted)]">Mais vendidos no último mês</p>
+          </div>
+          <div className="space-y-4">
+            {topProducts.length > 0 ? (
+              topProducts.map((product, index) => (
+                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-[var(--border-color)]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[var(--text-main)]">{product.name}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{product.quantity} unidades vendidas</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-emerald-600">R$ {product.revenue.toFixed(2)}</p>
+                    <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Faturamento</p>
+                  </div>
                 </div>
-                <h3 className="font-semibold">Resumo de Entrega</h3>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48 text-[var(--text-muted)]">
+                <Package className="h-10 w-10 mb-2 opacity-20" />
+                <p>Nenhuma venda este mês</p>
               </div>
-              <p className="text-sm opacity-90 mb-6">Você tem <span className="font-bold text-lg text-blue-500">{stats.readyOrders}</span> ordens prontas para entrega aos clientes.</p>
-              <Link 
-                to="/service-orders" 
-                className="inline-flex items-center gap-2 text-sm font-medium hover:gap-3 transition-all text-blue-500"
-              >
-                Ver ordens prontas <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </div>
+            )}
           </div>
         </div>
       </div>

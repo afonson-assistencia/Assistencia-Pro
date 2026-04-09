@@ -377,7 +377,14 @@ export default function PublicStorefront() {
       p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCategory = !selectedCategory || p.categoryId === selectedCategory || p.category === selectedCategory;
+    const selectedCat = categories.find(c => c.id === selectedCategory);
+    const matchesCategory = !selectedCategory || 
+      p.categoryId === selectedCategory || 
+      p.category === selectedCategory ||
+      (selectedCat && (
+        p.category?.toLowerCase() === selectedCat.name.toLowerCase() ||
+        p.categoryId?.toLowerCase() === selectedCat.name.toLowerCase()
+      ));
     
     return matchesSearch && matchesCategory;
   });

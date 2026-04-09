@@ -200,7 +200,7 @@ export default function Inventory() {
       setName(product.name);
       setPrice(product.price);
       setStock(product.stock);
-      setCategory(product.category || '');
+      setCategory(product.categoryId || '');
       setImei(product.imei || '');
       setDescription(product.description || '');
       setImageUrl(product.imageUrl || '');
