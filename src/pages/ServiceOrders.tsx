@@ -3,7 +3,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, update
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ServiceOrder, Customer, OSStatus, STATUS_LABELS, STATUS_COLORS } from '../types';
-import { Plus, Search, Filter, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical, CheckCircle2, Clock, DollarSign, ShieldCheck } from 'lucide-react';
+import { Plus, Search, Filter, MessageSquare, ChevronRight, X, Check, Send, AlertCircle, Trash2, Eye, History, FileText, Edit2, ClipboardList, LayoutGrid, List, Loader2, MoreVertical, CheckCircle2, Clock, DollarSign, ShieldCheck, Package, TrendingUp, Smartphone, ArrowUpRight, BarChart3, PieChart, CalendarDays, ArrowDownRight } from 'lucide-react';
 import { PHONE_MODELS, SERVICES } from '../constants';
 import { format, addDays, startOfMonth, endOfMonth, isWithinInterval, subMonths, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,7 +13,6 @@ import { getWhatsAppUrl } from '../utils/whatsapp';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import PixQRCodeModal from '../components/PixQRCodeModal';
-import { Smartphone, TrendingUp, BarChart3, PieChart, CalendarDays, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function ServiceOrders() {
@@ -46,6 +45,7 @@ export default function ServiceOrders() {
   const [deadlineDays, setDeadlineDays] = useState(3);
   const [notes, setNotes] = useState('');
   const [totalValue, setTotalValue] = useState(0);
+  const [productCost, setProductCost] = useState(0);
   const [downPayment, setDownPayment] = useState(0);
   const [downPaymentMethod, setDownPaymentMethod] = useState<'pix' | 'cash' | 'card'>('pix');
   const [finalPayment, setFinalPayment] = useState(0);
@@ -175,6 +175,7 @@ export default function ServiceOrders() {
         warrantyDays,
         notes: notes.trim(),
         totalValue,
+        productCost,
         downPayment,
         downPaymentMethod,
         finalPayment,
@@ -248,6 +249,7 @@ export default function ServiceOrders() {
     
     setNotes(order.notes || '');
     setTotalValue(order.totalValue || 0);
+    setProductCost(order.productCost || 0);
     setDownPayment(order.downPayment || 0);
     setDownPaymentMethod(order.downPaymentMethod || 'pix');
     setFinalPayment(order.finalPayment || 0);
@@ -267,6 +269,7 @@ export default function ServiceOrders() {
     setDeadlineDays(3);
     setNotes('');
     setTotalValue(0);
+    setProductCost(0);
     setDownPayment(0);
     setDownPaymentMethod('pix');
     setFinalPayment(0);
@@ -442,6 +445,12 @@ ${order.status === 'ready'
     .filter(o => o.status === 'delivered')
     .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
 
+  const currentMonthInvestment = currentMonthOrders
+    .filter(o => o.status === 'delivered')
+    .reduce((acc, curr) => acc + (curr.productCost || 0), 0);
+
+  const currentMonthProfit = currentMonthRevenue - currentMonthInvestment;
+
   const currentMonthCount = currentMonthOrders.filter(o => o.status === 'delivered').length;
   const averageTicket = currentMonthCount > 0 ? currentMonthRevenue / currentMonthCount : 0;
 
@@ -449,12 +458,19 @@ ${order.status === 'ready'
   const chartData = Array.from({ length: 6 }).map((_, i) => {
     const monthDate = subMonths(now, 5 - i);
     const monthName = format(monthDate, 'MMM', { locale: ptBR });
-    const revenue = orders
-      .filter(o => o.status === 'delivered' && o.deliveredAt?.toDate && isSameMonth(o.deliveredAt.toDate(), monthDate))
-      .reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+    const monthOrders = orders.filter(o => o.status === 'delivered' && o.deliveredAt?.toDate && isSameMonth(o.deliveredAt.toDate(), monthDate));
     
-    return { name: monthName.toUpperCase(), valor: revenue };
-  }).filter(d => d.valor > 0 || true); // Keep all for better chart look
+    const revenue = monthOrders.reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
+    const cost = monthOrders.reduce((acc, curr) => acc + (curr.productCost || 0), 0);
+    const profit = revenue - cost;
+    
+    return { 
+      name: monthName.toUpperCase(), 
+      valor: revenue,
+      lucro: profit,
+      investimento: cost
+    };
+  }).filter(d => d.valor > 0 || true);
 
   const isWarrantyExpired = (order: ServiceOrder) => {
     if (order.status !== 'delivered' || !order.deliveredAt || !order.warrantyDays) return false;
@@ -498,10 +514,10 @@ ${order.status === 'ready'
       {showDashboard && (
         <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
           {/* Stats Grid */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <div className="card p-5 border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-900/10">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Faturamento Mensal</span>
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Recebido (Mês)</span>
                 <TrendingUp className="h-4 w-4 text-blue-500" />
               </div>
               <div className="flex items-baseline gap-1">
@@ -509,31 +525,41 @@ ${order.status === 'ready'
               </div>
               <p className="text-[10px] text-[var(--text-muted)] mt-1 flex items-center gap-1">
                 <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                Referente a {format(now, 'MMMM', { locale: ptBR })}
+                {format(now, 'MMMM', { locale: ptBR })}
               </p>
+            </div>
+
+            <div className="card p-5 border-l-4 border-l-red-500 bg-red-50/30 dark:bg-red-900/10">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">Investido em Peças</span>
+                <Package className="h-4 w-4 text-red-500" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-[var(--text-main)]">R$ {currentMonthInvestment.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Custo total de produtos</p>
             </div>
 
             <div className="card p-5 border-l-4 border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-900/10">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">O.S. Concluídas</span>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Lucro Real</span>
+                <DollarSign className="h-4 w-4 text-emerald-500" />
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-black text-[var(--text-main)]">{currentMonthCount}</span>
-                <span className="text-xs text-[var(--text-muted)]">unidades</span>
+                <span className="text-2xl font-black text-emerald-600">R$ {currentMonthProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">Total entregue este mês</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Faturamento - Investimento</p>
             </div>
 
             <div className="card p-5 border-l-4 border-l-amber-500 bg-amber-50/30 dark:bg-amber-900/10">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Ticket Médio</span>
-                <DollarSign className="h-4 w-4 text-amber-500" />
+                <Smartphone className="h-4 w-4 text-amber-500" />
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-[var(--text-main)]">R$ {averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">Média por serviço concluído</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Média por O.S. concluída</p>
             </div>
 
             <div className="card p-5 border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-900/10">
@@ -544,7 +570,7 @@ ${order.status === 'ready'
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-[var(--text-main)]">R$ {totalPendingValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">Total de O.S. não finalizadas</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Total de O.S. ativas</p>
             </div>
           </div>
 
@@ -553,11 +579,18 @@ ${order.status === 'ready'
             <div className="lg:col-span-2 card p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="font-bold text-[var(--text-main)]">Faturamento Semestral</h3>
-                  <p className="text-xs text-[var(--text-muted)]">Evolução dos últimos 6 meses</p>
+                  <h3 className="font-bold text-[var(--text-main)]">Desempenho Semestral</h3>
+                  <p className="text-xs text-[var(--text-muted)]">Receita vs Lucro Real</p>
                 </div>
-                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                <div className="flex gap-4 text-[10px] font-bold uppercase">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <span className="text-[var(--text-muted)]">Receita</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                    <span className="text-[var(--text-muted)]">Lucro</span>
+                  </div>
                 </div>
               </div>
               <div className="h-[250px] w-full">
@@ -587,16 +620,13 @@ ${order.status === 'ready'
                         color: 'var(--text-main)'
                       }}
                       itemStyle={{ color: '#3b82f6' }}
-                      formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Faturamento']}
+                      formatter={(value: number, name: string) => [
+                        `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
+                        name === 'valor' ? 'Receita' : 'Lucro Real'
+                      ]}
                     />
-                    <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={40}>
-                      {chartData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={index === chartData.length - 1 ? '#3b82f6' : 'rgba(59, 130, 246, 0.4)'} 
-                        />
-                      ))}
-                    </Bar>
+                    <Bar dataKey="valor" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={25} name="Receita" />
+                    <Bar dataKey="lucro" fill="#10b981" radius={[4, 4, 0, 0]} barSize={25} name="Lucro" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -987,6 +1017,17 @@ ${order.status === 'ready'
                   className="input mt-1"
                   value={totalValue}
                   onChange={(e) => setTotalValue(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Custo da Peça/Produto (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="input mt-1 border-red-200 dark:border-red-900/30 focus:border-red-500"
+                  placeholder="Apenas para controle interno"
+                  value={productCost}
+                  onChange={(e) => setProductCost(parseFloat(e.target.value) || 0)}
                 />
               </div>
               <div className="md:col-span-2">

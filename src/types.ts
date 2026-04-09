@@ -37,6 +37,7 @@ export interface ServiceOrder {
   statusHistory?: { status: OSStatus; date: any; notes?: string }[];
   notes?: string;
   totalValue?: number;
+  productCost?: number;
   downPayment?: number;
   downPaymentMethod?: 'pix' | 'cash' | 'card';
   finalPayment?: number;

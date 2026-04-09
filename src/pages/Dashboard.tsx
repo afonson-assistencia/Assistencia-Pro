@@ -18,6 +18,7 @@ export default function Dashboard() {
     todaySalesRevenue: 0,
     weekRevenue: 0,
     monthRevenue: 0,
+    monthProductCosts: 0,
     monthExpenses: 0,
     monthProfit: 0,
   });
@@ -46,6 +47,7 @@ export default function Dashboard() {
       let todaySalesRev = 0;
       let weekRev = 0;
       let monthRev = 0;
+      let monthProductCosts = 0;
       let monthExp = 0;
 
       const dailyRevenue: Record<string, number> = {};
@@ -87,10 +89,16 @@ export default function Dashboard() {
           }
           if (date >= weekS) weekRev += val;
           monthRev += val;
+          monthProductCosts += (data.productCost || 0);
 
           const dateStr = format(date, 'yyyy-MM-dd');
           if (dailyRevenue[dateStr] !== undefined) {
             dailyRevenue[dateStr] += val;
+          }
+          
+          // Also add product cost to daily expenses for the chart
+          if (dailyExpenses[dateStr] !== undefined) {
+            dailyExpenses[dateStr] += (data.productCost || 0);
           }
         }
       });
@@ -130,8 +138,9 @@ export default function Dashboard() {
         todaySalesRevenue: todaySalesRev,
         weekRevenue: weekRev,
         monthRevenue: monthRev,
+        monthProductCosts: monthProductCosts,
         monthExpenses: monthExp,
-        monthProfit: monthRev - monthExp,
+        monthProfit: monthRev - monthExp - monthProductCosts,
       });
       setChartData(chartArr);
       setRecentOrders(recent);
