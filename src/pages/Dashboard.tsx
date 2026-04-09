@@ -300,57 +300,6 @@ export default function Dashboard() {
         <p className="text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>
       </div>
 
-      {/* Expiring Orders Alert */}
-      {expiringOrders.length > 0 && (
-        <div className="card border-amber-500 bg-amber-50/50 dark:bg-amber-900/10 p-4 sm:p-6">
-          <div className="pb-2">
-            <h2 className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-lg font-bold">
-              <Clock className="h-5 w-5" />
-              O.S. Próximas do Vencimento (3 dias)
-            </h2>
-          </div>
-          <div className="space-y-2">
-            {expiringOrders.map(order => (
-              <Link key={order.id} to="/service-orders" className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm dark:bg-slate-800 border border-[var(--border-color)] hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                <div>
-                  <p className="text-sm font-bold text-[var(--text-main)]">{order.customerName}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{order.model} • {order.problem}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold text-amber-600">
-                    Vence em: {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : ''}
-                  </p>
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${STATUS_COLORS[order.status]}`}>
-                    {STATUS_LABELS[order.status]}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Low Stock Alert */}
-      {lowStockProducts.length > 0 && (
-        <div className="card border-red-500 bg-red-50/50 dark:bg-red-900/10 p-4 sm:p-6">
-          <div className="pb-2">
-            <h2 className="flex items-center gap-2 text-red-600 dark:text-red-400 text-lg font-bold">
-              <AlertCircle className="h-5 w-5" />
-              Alerta de Estoque Baixo
-            </h2>
-          </div>
-          <div>
-            <div className="flex flex-wrap gap-2">
-              {lowStockProducts.map(p => (
-                <div key={p.id} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium shadow-sm dark:bg-slate-800 text-[var(--text-main)] border border-[var(--border-color)]">
-                  {p.name}: <span className="text-red-500 font-bold">{p.stock} un</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Stats Grid */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-4 sm:p-6">
@@ -467,74 +416,96 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Monthly Revenue Line Chart */}
-        <div className="card p-4 sm:p-6">
-          <div className="pb-8">
-            <h2 className="text-lg font-semibold">Receita Mensal</h2>
-            <p className="text-xs text-[var(--text-muted)]">Últimos 6 meses (Vendas + O.S.)</p>
+        {/* Recent Orders */}
+        <div className="card">
+          <div className="flex flex-row items-center justify-between border-b border-[var(--border-color)] p-4 sm:p-6">
+            <h2 className="text-lg font-semibold">Últimas O.S.</h2>
+            <Link to="/service-orders" className="text-xs font-medium text-blue-600 hover:underline">Ver todas</Link>
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyRevenueData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                  tickFormatter={(value) => `R$ ${value}`}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'var(--bg-card)',
-                    color: 'var(--text-main)',
-                    borderRadius: '8px', 
-                    border: '1px solid var(--border-color)', 
-                    fontSize: '12px'
-                  }}
-                  formatter={(value: number) => [`R$ ${value.toFixed(2)}`]}
-                />
-                <Line type="monotone" dataKey="revenue" stroke="var(--accent-primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--accent-primary)' }} activeDot={{ r: 6 }} name="Receita" />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="p-0">
+            <div className="divide-y divide-[var(--border-color)]">
+              {recentOrders.length > 0 ? (
+                recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-main)] transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[var(--text-main)] truncate">{order.customerName}</p>
+                      <p className="text-xs text-[var(--text-muted)] truncate">{order.model}</p>
+                    </div>
+                    <div className="ml-4 flex flex-col items-end gap-1.5">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_COLORS[order.status]}`}>
+                        {STATUS_LABELS[order.status]}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-[var(--text-muted)]">Nenhuma ordem recente.</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Alerts & New Info (Moved to bottom to preserve layout) */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* OS Status Bar Chart */}
-        <div className="card p-4 sm:p-6">
-          <div className="pb-8">
-            <h2 className="text-lg font-semibold">Status de O.S. (30 dias)</h2>
-            <p className="text-xs text-[var(--text-muted)]">Distribuição por status</p>
+        {/* Expiring Orders Alert */}
+        {expiringOrders.length > 0 && (
+          <div className="card border-amber-500 bg-amber-50/50 dark:bg-amber-900/10 p-4 sm:p-6">
+            <div className="pb-4">
+              <h2 className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-lg font-bold">
+                <Clock className="h-5 w-5" />
+                O.S. Próximas do Vencimento
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {expiringOrders.map(order => (
+                <Link key={order.id} to="/service-orders" className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm dark:bg-slate-800 border border-[var(--border-color)] hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  <div>
+                    <p className="text-sm font-bold text-[var(--text-main)]">{order.customerName}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{order.model}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-amber-600">
+                      {order.deadline?.toDate ? format(order.deadline.toDate(), 'dd/MM/yyyy') : ''}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="h-[300px] w-full">
+        )}
+
+        {/* Low Stock Alert */}
+        {lowStockProducts.length > 0 && (
+          <div className="card border-red-500 bg-red-50/50 dark:bg-red-900/10 p-4 sm:p-6">
+            <div className="pb-4">
+              <h2 className="flex items-center gap-2 text-red-600 dark:text-red-400 text-lg font-bold">
+                <AlertCircle className="h-5 w-5" />
+                Estoque Baixo
+              </h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {lowStockProducts.map(p => (
+                <div key={p.id} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium shadow-sm dark:bg-slate-800 text-[var(--text-main)] border border-[var(--border-color)]">
+                  {p.name}: <span className="text-red-500 font-bold">{p.stock} un</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* New Charts (Moved to bottom) */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg font-semibold mb-4">Status de O.S. (30 dias)</h2>
+          <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={statusChartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
                 <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'var(--text-main)', fontSize: 12, fontWeight: 500 }}
-                  width={100}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'var(--bg-main)', opacity: 0.4 }}
-                  contentStyle={{ 
-                    backgroundColor: 'var(--bg-card)',
-                    borderRadius: '8px', 
-                    border: '1px solid var(--border-color)', 
-                    fontSize: '12px'
-                  }}
-                />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-main)', fontSize: 11 }} width={80} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '12px' }} />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]} name="Quantidade">
                   {statusChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={
@@ -551,69 +522,18 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Top 5 Products */}
         <div className="card p-4 sm:p-6">
-          <div className="pb-4">
-            <h2 className="text-lg font-semibold">Top 5 Produtos (Mês)</h2>
-            <p className="text-xs text-[var(--text-muted)]">Mais vendidos no último mês</p>
-          </div>
-          <div className="space-y-4">
-            {topProducts.length > 0 ? (
-              topProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-[var(--border-color)]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[var(--text-main)]">{product.name}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{product.quantity} unidades vendidas</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-emerald-600">R$ {product.revenue.toFixed(2)}</p>
-                    <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Faturamento</p>
-                  </div>
+          <h2 className="text-lg font-semibold mb-4">Top 5 Produtos (Mês)</h2>
+          <div className="space-y-3">
+            {topProducts.map((product, index) => (
+              <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-[var(--border-color)]">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400">#{index + 1}</span>
+                  <p className="text-sm font-medium text-[var(--text-main)]">{product.name}</p>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-48 text-[var(--text-muted)]">
-                <Package className="h-10 w-10 mb-2 opacity-20" />
-                <p>Nenhuma venda este mês</p>
+                <p className="text-sm font-bold text-emerald-600">R$ {product.revenue.toFixed(2)}</p>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Orders */}
-      <div className="card">
-        <div className="flex flex-row items-center justify-between border-b border-[var(--border-color)] p-4 sm:p-6">
-          <h2 className="text-lg font-semibold">Últimas Ordens de Serviço</h2>
-          <Link to="/service-orders" className="text-xs font-medium text-blue-600 hover:underline">Ver todas</Link>
-        </div>
-        <div className="p-0">
-          <div className="divide-y divide-[var(--border-color)]">
-            {recentOrders.length > 0 ? (
-              recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 hover:bg-[var(--bg-main)] transition-colors">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-[var(--text-main)] truncate">{order.customerName}</p>
-                    <p className="text-xs text-[var(--text-muted)] truncate">{order.model} • {order.problem}</p>
-                  </div>
-                  <div className="ml-4 flex flex-col items-end gap-1.5">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_COLORS[order.status]}`}>
-                      {STATUS_LABELS[order.status]}
-                    </span>
-                    <p className="text-[10px] text-[var(--text-muted)]">
-                      {order.createdAt?.toDate ? format(order.createdAt.toDate(), 'dd/MM HH:mm', { locale: ptBR }) : ''}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center text-[var(--text-muted)]">Nenhuma ordem recente.</div>
-            )}
+            ))}
           </div>
         </div>
       </div>

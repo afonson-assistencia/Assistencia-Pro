@@ -490,39 +490,24 @@ ${order.status === 'ready'
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Ordens de Serviço</h1>
           <p className="text-sm sm:text-base text-[var(--text-muted)]">Gerencie os consertos em andamento.</p>
         </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente..."
-              className="input pl-10 h-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button 
-              onClick={() => setShowDashboard(!showDashboard)} 
-              className={`btn h-10 gap-2 flex-1 sm:flex-none ${showDashboard ? 'btn-secondary' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-            >
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">{showDashboard ? 'Ocultar Dashboard' : 'Ver Dashboard'}</span>
-              <span className="sm:hidden">Dash</span>
-            </button>
-            <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn btn-primary h-10 gap-2 flex-1 sm:flex-none">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Nova O.S.</span>
-              <span className="sm:hidden">Nova</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button 
+            onClick={() => setShowDashboard(!showDashboard)} 
+            className={`btn gap-2 flex-1 sm:flex-none ${showDashboard ? 'btn-secondary' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>{showDashboard ? 'Ocultar Dashboard' : 'Ver Dashboard'}</span>
+          </button>
+          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn btn-primary gap-2 flex-1 sm:flex-none">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nova O.S.</span>
+            <span className="sm:hidden">Nova</span>
+          </button>
         </div>
       </div>
 
@@ -686,6 +671,18 @@ ${order.status === 'ready'
       )}
 
       <div className="flex flex-col gap-4 sm:flex-row items-center">
+        <div className="flex-1 w-full">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type="text"
+              placeholder="Buscar por cliente ou modelo..."
+              className="input pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
         <div className={`w-full sm:w-64 input flex items-center gap-2 transition-all ${
           statusFilter !== 'all' 
             ? `${STATUS_COLORS[statusFilter as OSStatus]} ring-2 ring-opacity-20 ring-blue-500` 
