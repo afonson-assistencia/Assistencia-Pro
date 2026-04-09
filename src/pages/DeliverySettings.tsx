@@ -19,6 +19,7 @@ export default function DeliverySettings() {
   const [editingLocation, setEditingLocation] = useState<DeliveryLocation | null>(null);
   const [name, setName] = useState('');
   const [value, setValue] = useState(0);
+  const [motoboyFee, setMotoboyFee] = useState(0);
 
   useEffect(() => {
     const q = query(collection(db, 'deliveryLocations'), orderBy('name', 'asc'));
@@ -48,6 +49,7 @@ export default function DeliverySettings() {
       const data = {
         name: name.trim(),
         value: Number(value),
+        motoboyFee: Number(motoboyFee),
         updatedAt: serverTimestamp(),
       };
 
@@ -86,11 +88,31 @@ export default function DeliverySettings() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('ATENÇÃO: Isso excluirá TODAS as taxas de entrega cadastradas. Deseja continuar?')) return;
+    
+    setActionLoading(prev => ({ ...prev, clearAll: true }));
+    try {
+      const batch = [];
+      for (const loc of locations) {
+        batch.push(deleteDoc(doc(db, 'deliveryLocations', loc.id)));
+      }
+      await Promise.all(batch);
+      setSuccess('Todas as regiões foram excluídas com sucesso!');
+    } catch (err) {
+      console.error('Error clearing all locations:', err);
+      setError('Erro ao excluir todas as regiões.');
+    } finally {
+      setActionLoading(prev => ({ ...prev, clearAll: false }));
+    }
+  };
+
   const openModal = (location?: DeliveryLocation) => {
     if (location) {
       setEditingLocation(location);
       setName(location.name);
       setValue(location.value);
+      setMotoboyFee(location.motoboyFee || 0);
     } else {
       setEditingLocation(null);
       resetForm();
@@ -101,6 +123,7 @@ export default function DeliverySettings() {
   const resetForm = () => {
     setName('');
     setValue(0);
+    setMotoboyFee(0);
     setEditingLocation(null);
   };
 
@@ -121,10 +144,22 @@ export default function DeliverySettings() {
           <h1 className="text-2xl font-bold text-[var(--text-main)]">Taxas de Entrega</h1>
           <p className="text-[var(--text-muted)]">Gerencie as regiões e valores de frete para sua vitrine.</p>
         </div>
-        <button onClick={() => openModal()} className="btn btn-primary gap-2">
-          <Plus className="h-4 w-4" />
-          Nova Região
-        </button>
+        <div className="flex gap-2">
+          {locations.length > 0 && (
+            <button 
+              onClick={handleClearAll} 
+              disabled={actionLoading.clearAll}
+              className="btn btn-secondary text-red-600 hover:bg-red-50 gap-2"
+            >
+              {actionLoading.clearAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Limpar Todas
+            </button>
+          )}
+          <button onClick={() => openModal()} className="btn btn-primary gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Região
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -151,7 +186,8 @@ export default function DeliverySettings() {
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
               <tr>
                 <th className="px-6 py-3 font-semibold">Região / Bairro</th>
-                <th className="px-6 py-3 font-semibold">Taxa de Entrega</th>
+                <th className="px-6 py-3 font-semibold">Taxa Vitrine (Cliente)</th>
+                <th className="px-6 py-3 font-semibold">Taxa Busca Peças (Motoboy)</th>
                 <th className="px-6 py-3 font-semibold text-right">Ações</th>
               </tr>
             </thead>
@@ -167,6 +203,9 @@ export default function DeliverySettings() {
                     </td>
                     <td className="px-6 py-4 text-[var(--text-main)] font-bold">
                       R$ {loc.value.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 text-[var(--text-main)] font-bold">
+                      R$ {(loc.motoboyFee || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
@@ -227,7 +266,7 @@ export default function DeliverySettings() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)]">Taxa de Entrega (R$)</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Taxa Vitrine - Entrega Cliente (R$)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -235,6 +274,17 @@ export default function DeliverySettings() {
                   className="input mt-1"
                   value={value}
                   onChange={(e) => setValue(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Taxa Busca de Peças - Pagamento Motoboy (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  className="input mt-1"
+                  value={motoboyFee}
+                  onChange={(e) => setMotoboyFee(parseFloat(e.target.value) || 0)}
                 />
               </div>
               <div className="flex gap-3 pt-4">

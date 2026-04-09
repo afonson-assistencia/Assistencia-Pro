@@ -48,11 +48,12 @@ function AppContent() {
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
       } catch (error) {
-        if (error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration. The client is offline.");
-        } else {
-          // Log but don't throw to prevent app crash
-          console.error("Firestore connection test failed:", error);
+        if (error instanceof Error) {
+          if (error.message.includes('the client is offline') || error.message.includes('unavailable')) {
+            console.error("Firestore connection issue: The backend is unreachable. This may be due to a restricted network or incorrect configuration. Long polling has been enabled to help.");
+          } else {
+            console.error("Firestore connection test failed:", error.message);
+          }
         }
       }
     }

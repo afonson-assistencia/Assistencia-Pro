@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { StorefrontOrder, StorefrontOrderStatus } from '../types';
-import { ShoppingBag, Clock, CheckCircle, XCircle, Truck, Trash2, Search, Filter, Calendar, MapPin, User, Package, DollarSign, MoreVertical } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, XCircle, Truck, Trash2, Search, Filter, Calendar, MapPin, User, Package, DollarSign, MoreVertical, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
@@ -81,7 +81,7 @@ export default function StorefrontOrders() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Pedidos da Vitrine</h1>
@@ -162,21 +162,23 @@ export default function StorefrontOrders() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Orders List */}
         <div className="lg:col-span-2 space-y-4">
-          {loading ? (
+          {loading && orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
               <p className="text-slate-500 font-medium">Carregando pedidos...</p>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="card p-12 text-center space-y-4">
-              <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto">
-                <ShoppingBag className="h-10 w-10 text-slate-300" />
+            !loading && (
+              <div className="card p-12 text-center space-y-4">
+                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto">
+                  <ShoppingBag className="h-10 w-10 text-slate-300" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900 dark:text-white">Nenhum pedido encontrado</p>
+                  <p className="text-sm text-slate-400">Tente ajustar seus filtros de busca.</p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="font-bold text-slate-900 dark:text-white">Nenhum pedido encontrado</p>
-                <p className="text-sm text-slate-400">Tente ajustar seus filtros de busca.</p>
-              </div>
-            </div>
+            )
           ) : (
             filteredOrders.map((order) => (
               <motion.div 
@@ -323,5 +325,3 @@ export default function StorefrontOrders() {
     </div>
   );
 }
-
-import { Eye } from 'lucide-react';

@@ -119,6 +119,7 @@ export interface DeliveryLocation {
   id: string;
   name: string;
   value: number;
+  motoboyFee?: number;
   createdAt: any;
 }
 

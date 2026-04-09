@@ -250,7 +250,7 @@ export default function MotoboyDashboard() {
   }, [showHistory, profile.motoboyId, historyMonth]);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
+    <div className="max-w-4xl mx-auto space-y-4 pb-20">
       {/* Header */}
       <div className="flex items-center justify-between bg-[var(--bg-card)] p-3 sm:p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -541,7 +541,7 @@ export default function MotoboyDashboard() {
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Local da Entrega
+                  Local da Busca / Entrega
                 </label>
                 <select
                   className="input w-full text-base"
@@ -551,14 +551,17 @@ export default function MotoboyDashboard() {
                     setSelectedLocationId(locId);
                     const location = locations.find(l => l.id === locId);
                     if (location) {
-                      setRunValue(location.value.toString());
+                      const fee = (location.motoboyFee !== undefined && location.motoboyFee !== null) 
+                        ? location.motoboyFee 
+                        : location.value;
+                      setRunValue(fee.toString());
                     }
                   }}
                 >
                   <option value="">Selecione o local...</option>
                   {locations.map(loc => (
                     <option key={loc.id} value={loc.id}>
-                      {loc.name} - R$ {loc.value.toFixed(2)}
+                      {loc.name} - R$ {((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value).toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -567,7 +570,7 @@ export default function MotoboyDashboard() {
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
-                  Valor da Corrida (R$)
+                  Valor da Busca / Corrida (R$)
                 </label>
                 <input
                   type="number"
@@ -649,7 +652,11 @@ export default function MotoboyDashboard() {
                     <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
                       R$ {(
                         (tempRuns.reduce((acc, r) => acc + (r.value * r.quantity), 0)) +
-                        ((locations.find(l => l.id === selectedLocationId)?.value || 0) * parseInt(quantity || '0'))
+                        ((() => {
+                          const loc = locations.find(l => l.id === selectedLocationId);
+                          if (!loc) return 0;
+                          return (loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value;
+                        })() * parseInt(quantity || '0'))
                       ).toFixed(2)}
                     </span>
                   </div>
@@ -695,7 +702,7 @@ export default function MotoboyDashboard() {
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Local da Entrega
+                  Local da Busca / Entrega
                 </label>
                 <select
                   className="input w-full text-base"
@@ -706,7 +713,7 @@ export default function MotoboyDashboard() {
                     setEditForm({
                       ...editForm,
                       locationId: locId,
-                      value: location ? location.value : editForm.value
+                      value: location ? ((location.motoboyFee !== undefined && location.motoboyFee !== null) ? location.motoboyFee : location.value) : editForm.value
                     });
                   }}
                   required
@@ -714,7 +721,7 @@ export default function MotoboyDashboard() {
                   <option value="">Selecione o local...</option>
                   {locations.map(loc => (
                     <option key={loc.id} value={loc.id}>
-                      {loc.name} - R$ {loc.value.toFixed(2)}
+                      {loc.name} - R$ {((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value).toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -723,7 +730,7 @@ export default function MotoboyDashboard() {
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
-                  Valor da Corrida (R$)
+                  Valor da Busca / Corrida (R$)
                 </label>
                 <input
                   type="number"

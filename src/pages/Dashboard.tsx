@@ -294,7 +294,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="space-y-8 w-full overflow-x-hidden">
+    <div className="space-y-6 w-full overflow-x-hidden">
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-main)]">Dashboard</h1>
         <p className="text-[var(--text-muted)]">Bem-vindo ao sistema de gestão da sua assistência.</p>

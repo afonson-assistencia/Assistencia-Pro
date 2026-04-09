@@ -30,6 +30,7 @@ export default function DeliveryManagement() {
   const [editingLocation, setEditingLocation] = useState<DeliveryLocation | null>(null);
   const [newLocationName, setNewLocationName] = useState('');
   const [newLocationValue, setNewLocationValue] = useState('');
+  const [newLocationMotoboyFee, setNewLocationMotoboyFee] = useState('');
   
   const [isMotoboyModalOpen, setIsMotoboyModalOpen] = useState(false);
   const [newMotoboyName, setNewMotoboyName] = useState('');
@@ -188,17 +189,20 @@ export default function DeliveryManagement() {
       if (editingLocation) {
         await updateDoc(doc(db, 'deliveryLocations', editingLocation.id), {
           name: newLocationName,
-          value: parseFloat(newLocationValue)
+          value: parseFloat(newLocationValue),
+          motoboyFee: parseFloat(newLocationMotoboyFee) || 0
         });
       } else {
         await addDoc(collection(db, 'deliveryLocations'), {
           name: newLocationName,
           value: parseFloat(newLocationValue),
+          motoboyFee: parseFloat(newLocationMotoboyFee) || 0,
           createdAt: serverTimestamp()
         });
       }
       setNewLocationName('');
       setNewLocationValue('');
+      setNewLocationMotoboyFee('');
       setEditingLocation(null);
       setIsLocationModalOpen(false);
     } catch (error) {
@@ -212,6 +216,7 @@ export default function DeliveryManagement() {
     setEditingLocation(location);
     setNewLocationName(location.name);
     setNewLocationValue(location.value.toString());
+    setNewLocationMotoboyFee((location.motoboyFee || 0).toString());
     setIsLocationModalOpen(true);
   };
 
@@ -375,7 +380,7 @@ export default function DeliveryManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)]">Gestão de Entregas</h1>
@@ -834,10 +839,17 @@ export default function DeliveryManagement() {
               
               <div>
                 <h3 className="font-bold text-xl text-[var(--text-main)] mb-1">{loc.name}</h3>
-                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                  <DollarSign className="h-4 w-4" />
-                  <span>{loc.value.toFixed(2)}</span>
-                  <span className="text-xs font-normal text-[var(--text-muted)] ml-1">por corrida</span>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
+                    <DollarSign className="h-4 w-4" />
+                    <span>{loc.value.toFixed(2)}</span>
+                    <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1 uppercase">Taxa Vitrine (Entrega Cliente)</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-lg">
+                    <Bike className="h-4 w-4" />
+                    <span>{((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value).toFixed(2)}</span>
+                    <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1 uppercase">Taxa Busca de Peças (Pagamento Motoboy)</span>
+                  </div>
                 </div>
               </div>
 
@@ -1012,13 +1024,13 @@ export default function DeliveryManagement() {
                     setEditForm({ 
                       ...editForm, 
                       locationId: e.target.value,
-                      value: loc ? loc.value : editForm.value
+                      value: loc ? ((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value) : editForm.value
                     });
                   }}
                   required
                 >
                   {locations.map(l => (
-                    <option key={l.id} value={l.id}>{l.name} (R$ {l.value.toFixed(2)})</option>
+                    <option key={l.id} value={l.id}>{l.name} (R$ {((l.motoboyFee !== undefined && l.motoboyFee !== null) ? l.motoboyFee : l.value).toFixed(2)})</option>
                   ))}
                 </select>
               </div>
@@ -1115,7 +1127,7 @@ export default function DeliveryManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Valor da Corrida (R$)</label>
+                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Taxa Cliente (R$)</label>
                 <div className="relative">
                   <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
                   <input
@@ -1129,12 +1141,30 @@ export default function DeliveryManagement() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Taxa Motoboy (R$)</label>
+                <div className="relative">
+                  <Bike className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    className="input py-3 pl-12"
+                    placeholder="0.00"
+                    value={newLocationMotoboyFee}
+                    onChange={(e) => setNewLocationMotoboyFee(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setIsLocationModalOpen(false);
                     setEditingLocation(null);
+                    setNewLocationName('');
+                    setNewLocationValue('');
+                    setNewLocationMotoboyFee('');
                   }}
                   className="btn btn-secondary flex-1 py-3"
                 >
