@@ -122,11 +122,13 @@ export default function Inventory() {
         name: name.trim(),
         price,
         stock,
-        category,
+        categoryId: category, // Store the ID
+        category: categories.find(c => c.id === category)?.name || '', // Store the name for display
         imei: imei.trim(),
         description: description.trim(),
         imageUrl: finalImageUrls[0] || imageUrl,
         imageUrls: finalImageUrls,
+        lastUpdate: serverTimestamp(),
       };
 
       if (editingProduct) {
@@ -416,7 +418,9 @@ export default function Inventory() {
                       </div>
                       <div>
                         <h3 className="font-bold text-[var(--text-main)]">{product.name}</h3>
-                        <p className="text-xs text-[var(--text-muted)]">{product.category || 'Sem Categoria'}</p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {categories.find(c => c.id === product.categoryId)?.name || product.category || 'Sem Categoria'}
+                        </p>
                         {product.imei && <p className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-1">IMEI: {product.imei}</p>}
                       </div>
                     </div>
@@ -526,7 +530,9 @@ export default function Inventory() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-[var(--text-muted)] font-mono text-xs">{product.imei || '-'}</td>
-                        <td className="px-6 py-4 text-[var(--text-muted)]">{product.category || '-'}</td>
+                        <td className="px-6 py-4 text-[var(--text-muted)]">
+                          {categories.find(c => c.id === product.categoryId)?.name || product.category || '-'}
+                        </td>
                         <td className="px-6 py-4 text-[var(--text-muted)]">R$ {product.price.toFixed(2)}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -680,8 +686,8 @@ export default function Inventory() {
                   onChange={(e) => setCategory(e.target.value)}
                 >
                   <option value="">Selecione uma categoria</option>
-                  {categoryOptions.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>

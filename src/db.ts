@@ -12,14 +12,20 @@ export class AppDatabase extends Dexie {
   syncQueue!: Table<SyncOperation>;
   customers!: Table<any>;
   products!: Table<any>;
+  categories!: Table<any>;
+  deliveryLocations!: Table<any>;
+  storefrontOrders!: Table<any>;
   serviceOrders!: Table<any>;
 
   constructor() {
     super('AssistenciaProDB');
-    this.version(1).stores({
+    this.version(2).stores({
       syncQueue: '++id, collection, type, timestamp',
       customers: 'id, name, phone',
-      products: 'id, name, category',
+      products: 'id, name, categoryId',
+      categories: 'id, name',
+      deliveryLocations: 'id, name',
+      storefrontOrders: 'id, customerName, status',
       serviceOrders: 'id, customerId, status, model'
     });
   }

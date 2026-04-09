@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useSettings } from '../contexts/SettingsContext';
-import { Storefront, Product } from '../types';
+import { Storefront, Product, Category, DeliveryLocation } from '../types';
 import { 
   Search, 
   Package, 
@@ -28,6 +28,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { toast, Toaster } from 'sonner';
+import { dbLocal } from '../db';
+import { serverTimestamp } from 'firebase/firestore';
 
 interface CartItem extends Product {
   quantity: number;
@@ -47,6 +49,14 @@ export default function PublicStorefront() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [deliveryLocations, setDeliveryLocations] = useState<DeliveryLocation[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<DeliveryLocation | null>(null);
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerName, setCustomerName] = useState('');
 
   // Load cart from localStorage
   useEffect(() => {
@@ -103,6 +113,8 @@ export default function PublicStorefront() {
   };
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const shippingValue = selectedLocation?.value || 0;
+  const finalTotal = cartTotal + shippingValue;
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   const copyStorefrontLink = () => {
@@ -151,41 +163,88 @@ export default function PublicStorefront() {
   useEffect(() => {
     if (!slug) return;
 
-    const fetchStorefront = async () => {
+    const fetchStorefrontAndSync = async () => {
+      setLoading(true);
       try {
+        // 1. Fetch Storefront
         const q = query(collection(db, 'storefronts'), where('slug', '==', slug), where('active', '==', true));
         const querySnapshot = await getDocs(q);
         
         if (querySnapshot.empty) {
           setError('Vitrine não encontrada ou inativa.');
+          setLoading(false);
           return;
         }
 
         const sfData = { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Storefront;
         setStorefront(sfData);
 
-        // Fetch products
-        if (sfData.productIds && sfData.productIds.length > 0) {
-          // Firestore 'in' operator is limited to 10 items, but for now we'll assume it's small or fetch all and filter
-          // To be safe and support more products, we fetch all and filter client-side if needed, 
-          // but usually storefronts have a curated list.
+        // 2. Load from Local DB first
+        const localProducts = await dbLocal.products.toArray();
+        const localCategories = await dbLocal.categories.toArray();
+        
+        // Filter products that belong to this storefront
+        const sfProducts = localProducts.filter(p => sfData.productIds?.includes(p.id));
+        
+        if (sfProducts.length > 0) {
+          setProducts(sfProducts);
+          setCategories(localCategories);
+          setLoading(false);
+        }
+
+        // 3. Check for updates (Smart Sync)
+        const lastSync = localStorage.getItem(`last_sync_${slug}`);
+        const now = Date.now();
+        
+        // Sync if never synced or last sync was > 5 minutes ago
+        if (!lastSync || now - parseInt(lastSync) > 5 * 60 * 1000) {
+          setIsSyncing(true);
+          
+          // Fetch Categories
+          const catsSnap = await getDocs(collection(db, 'categories'));
+          const catsList: Category[] = [];
+          catsSnap.forEach(doc => catsList.push({ id: doc.id, ...doc.data() } as Category));
+          
+          // Update local categories
+          await dbLocal.categories.clear();
+          await dbLocal.categories.bulkAdd(catsList);
+          setCategories(catsList);
+
+          // Fetch Products
           const productsQuery = query(collection(db, 'products'));
           const productsSnapshot = await getDocs(productsQuery);
           const allProducts: Product[] = [];
           productsSnapshot.forEach(doc => {
-            if (sfData.productIds.includes(doc.id)) {
-              allProducts.push({ id: doc.id, ...doc.data() } as Product);
-            }
+            allProducts.push({ id: doc.id, ...doc.data() } as Product);
           });
-          setProducts(allProducts);
+
+          // Update local products
+          await dbLocal.products.clear();
+          await dbLocal.products.bulkAdd(allProducts);
+          
+          // Filter for this storefront
+          const filteredSfProducts = allProducts.filter(p => sfData.productIds?.includes(p.id));
+          setProducts(filteredSfProducts);
+          
+          localStorage.setItem(`last_sync_${slug}`, now.toString());
+          setIsSyncing(false);
         }
+
+        // Fetch Delivery Locations
+        const deliverySnap = await getDocs(collection(db, 'deliveryLocations'));
+        const deliveryList: DeliveryLocation[] = [];
+        deliverySnap.forEach(doc => deliveryList.push({ id: doc.id, ...doc.data() } as DeliveryLocation));
+        setDeliveryLocations(deliveryList);
+        
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching storefront:', err);
         setError('Ocorreu um erro ao carregar a vitrine.');
+        setLoading(false);
       }
     };
 
-    fetchStorefront();
+    fetchStorefrontAndSync();
   }, [slug]);
 
   useEffect(() => {
@@ -236,18 +295,66 @@ export default function PublicStorefront() {
     if (product) {
       message = `Olá! Vi seu produto na vitrine "${storefront.name}" e tenho interesse:\n\n*${product.name}*\nPreço: R$ ${product.price.toFixed(2)}\nLink: ${window.location.origin}/s/${slug}?product=${product.id}`;
     } else if (cart.length > 0) {
+      if (!customerName || !customerAddress || !selectedLocation) {
+        toast.error('Por favor, preencha seus dados de entrega.');
+        return;
+      }
+
       message = `Olá! Gostaria de fazer um pedido na sua vitrine "${storefront.name}":\n\n`;
+      message += `*Cliente:* ${customerName}\n`;
+      message += `*Endereço:* ${customerAddress}\n`;
+      message += `*Bairro/Região:* ${selectedLocation.name}\n\n`;
+      message += `*Itens:*\n`;
       cart.forEach(item => {
         message += `• ${item.quantity}x *${item.name}* - R$ ${(item.price * item.quantity).toFixed(2)}\n`;
       });
-      message += `\n*Total: R$ ${cartTotal.toFixed(2)}*`;
+      message += `\n*Subtotal:* R$ ${cartTotal.toFixed(2)}`;
+      message += `\n*Frete:* R$ ${shippingValue.toFixed(2)}`;
+      message += `\n*Total: R$ ${finalTotal.toFixed(2)}*`;
     } else {
       message = `Olá! Vi sua vitrine "${storefront.name}" e gostaria de saber mais sobre seus produtos.`;
     }
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${sanitizedNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+
+    const handleOrder = async () => {
+      // Save order to Firestore
+      try {
+        await addDoc(collection(db, 'storefrontOrders'), {
+          storefrontId: storefront.id,
+          customerName,
+          customerAddress,
+          locationId: selectedLocation.id,
+          locationName: selectedLocation.name,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          subtotal: cartTotal,
+          shipping: shippingValue,
+          total: finalTotal,
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
+        
+        // Clear cart
+        setCart([]);
+        localStorage.removeItem(`cart_${slug}`);
+        setIsCartOpen(false);
+        
+        // Open WhatsApp
+        window.open(whatsappUrl, '_blank');
+        toast.success('Pedido enviado com sucesso!');
+      } catch (err) {
+        console.error('Error saving order:', err);
+        toast.error('Erro ao processar pedido. Tente novamente.');
+      }
+    };
+
+    handleOrder();
   };
 
   const handleShare = () => {
@@ -265,11 +372,15 @@ export default function PublicStorefront() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = !selectedCategory || p.categoryId === selectedCategory || p.category === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
 
 
   const storefrontPlaceholder = storefront || {
@@ -283,9 +394,38 @@ export default function PublicStorefront() {
     ...(storefront?.theme || {}) 
   };
 
+  if (loading && !storefront) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+        <p className="text-slate-500 font-medium animate-pulse">Carregando vitrine...</p>
+      </div>
+    );
+  }
+
+  if (error && !storefront) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 p-6 text-center space-y-6">
+        <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-red-600">
+          <AlertCircle className="h-10 w-10" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Ops! Algo deu errado</h1>
+          <p className="text-slate-500 max-w-md mx-auto">{error}</p>
+        </div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="btn btn-primary px-8"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div 
-      className="min-h-screen pb-24 transition-colors duration-500"
+      className="min-h-screen transition-colors duration-500"
       style={{ backgroundColor: currentTheme.backgroundColor, color: currentTheme.textColor }}
     >
       {/* Sticky Header */}
@@ -354,7 +494,7 @@ export default function PublicStorefront() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-8">
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                     <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center">
@@ -372,64 +512,119 @@ export default function PublicStorefront() {
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {cart.map((item) => (
-                      <motion.div 
-                        layout
-                        key={item.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-black/5 dark:border-white/5"
-                      >
-                        <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-800 overflow-hidden shrink-0 border border-black/5 dark:border-white/5">
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-300">
-                              <Package className="h-8 w-8" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 flex flex-col justify-between py-1">
-                          <div>
-                            <h4 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">{item.name}</h4>
-                            <p className="text-xs font-black text-blue-600">R$ {item.price.toFixed(2)}</p>
+                  <>
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Itens no Carrinho</h3>
+                      {cart.map((item) => (
+                        <motion.div 
+                          layout
+                          key={item.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-black/5 dark:border-white/5"
+                        >
+                          <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-800 overflow-hidden shrink-0 border border-black/5 dark:border-white/5">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                <Package className="h-8 w-8" />
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-full p-1 border border-black/5 dark:border-white/5">
+                          <div className="flex-1 flex flex-col justify-between py-1">
+                            <div>
+                              <h4 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">{item.name}</h4>
+                              <p className="text-xs font-black text-blue-600">R$ {item.price.toFixed(2)}</p>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-full p-1 border border-black/5 dark:border-white/5">
+                                <button 
+                                  onClick={() => updateQuantity(item.id, -1)}
+                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                                <button 
+                                  onClick={() => updateQuantity(item.id, 1)}
+                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
                               <button 
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
+                                onClick={() => removeFromCart(item.id)}
+                                className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                               >
-                                <Minus className="h-3 w-3" />
-                              </button>
-                              <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
-                              <button 
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
-                              >
-                                <Plus className="h-3 w-3" />
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
-                            <button 
-                              onClick={() => removeFromCart(item.id)}
-                              className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
                           </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Dados de Entrega</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Seu Nome</label>
+                          <input 
+                            type="text" 
+                            placeholder="Como podemos te chamar?"
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                          />
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
+                          <input 
+                            type="text" 
+                            placeholder="Rua, número, complemento..."
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            value={customerAddress}
+                            onChange={(e) => setCustomerAddress(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Bairro / Região</label>
+                          <select 
+                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+                            value={selectedLocation?.id || ''}
+                            onChange={(e) => {
+                              const loc = deliveryLocations.find(l => l.id === e.target.value);
+                              setSelectedLocation(loc || null);
+                            }}
+                          >
+                            <option value="">Selecione seu bairro...</option>
+                            {deliveryLocations.map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name} - R$ {loc.value.toFixed(2)}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
 
               {cart.length > 0 && (
                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-black/5 dark:border-white/5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">Subtotal</span>
-                    <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {cartTotal.toFixed(2)}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-widest">Subtotal</span>
+                      <span className="font-bold">R$ {cartTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-widest">Frete</span>
+                      <span className="font-bold">{shippingValue > 0 ? `R$ ${shippingValue.toFixed(2)}` : '--'}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
+                      <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Total</span>
+                      <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {finalTotal.toFixed(2)}</span>
+                    </div>
                   </div>
                   <button 
                     onClick={() => handleWhatsApp()}
@@ -518,7 +713,7 @@ export default function PublicStorefront() {
       </header>
 
       {/* Search & Filter */}
-      <div className="px-6 -mt-8 relative z-20">
+      <div className="px-6 -mt-8 relative z-20 space-y-4">
         <div className="max-w-2xl mx-auto relative group">
           <div className="absolute inset-0 bg-black/5 blur-xl group-focus-within:bg-blue-500/10 transition-all"></div>
           <div className="relative flex items-center bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-1">
@@ -540,6 +735,37 @@ export default function PublicStorefront() {
             )}
           </div>
         </div>
+
+        {/* Categories Horizontal Scroll */}
+        {categories.length > 0 && (
+          <div className="max-w-7xl mx-auto overflow-x-auto no-scrollbar py-2">
+            <div className="flex items-center gap-2 px-2">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  !selectedCategory 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
+                    : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-100 dark:border-slate-700'
+                }`}
+              >
+                Todos
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    selectedCategory === cat.id
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
+                      : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-100 dark:border-slate-700'
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Products Grid */}

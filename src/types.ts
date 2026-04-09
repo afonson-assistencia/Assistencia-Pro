@@ -51,6 +51,7 @@ export interface Product {
   name: string;
   price: number;
   stock: number;
+  categoryId?: string;
   category?: string;
   imei?: string;
   description?: string;
@@ -87,7 +88,31 @@ export interface Storefront {
 export interface Category {
   id: string;
   name: string;
+  active?: boolean;
   createdAt: any;
+}
+
+export type StorefrontOrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+
+export interface StorefrontOrder {
+  id: string;
+  storefrontId: string;
+  customerName: string;
+  customerAddress: string;
+  locationId: string;
+  locationName: string;
+  items: {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
+  subtotal: number;
+  shipping: number;
+  total: number;
+  status: StorefrontOrderStatus;
+  createdAt: any;
+  updatedAt?: any;
 }
 
 export interface DeliveryLocation {
