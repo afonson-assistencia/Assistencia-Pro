@@ -120,6 +120,7 @@ export interface DeliveryLocation {
   name: string;
   value: number;
   motoboyFee?: number;
+  type?: 'neighborhood' | 'service';
   createdAt: any;
 }
 

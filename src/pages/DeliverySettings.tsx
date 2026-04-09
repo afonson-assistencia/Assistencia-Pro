@@ -18,8 +18,8 @@ export default function DeliverySettings() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<DeliveryLocation | null>(null);
   const [name, setName] = useState('');
-  const [value, setValue] = useState(0);
   const [motoboyFee, setMotoboyFee] = useState(0);
+  const [type] = useState<'neighborhood' | 'service'>('service');
 
   useEffect(() => {
     const q = query(collection(db, 'deliveryLocations'), orderBy('name', 'asc'));
@@ -48,8 +48,9 @@ export default function DeliverySettings() {
     try {
       const data = {
         name: name.trim(),
-        value: Number(value),
+        value: 0, // No longer used for vitrine
         motoboyFee: Number(motoboyFee),
+        type: 'service',
         updatedAt: serverTimestamp(),
       };
 
@@ -111,7 +112,6 @@ export default function DeliverySettings() {
     if (location) {
       setEditingLocation(location);
       setName(location.name);
-      setValue(location.value);
       setMotoboyFee(location.motoboyFee || 0);
     } else {
       setEditingLocation(null);
@@ -122,7 +122,6 @@ export default function DeliverySettings() {
 
   const resetForm = () => {
     setName('');
-    setValue(0);
     setMotoboyFee(0);
     setEditingLocation(null);
   };
@@ -141,8 +140,8 @@ export default function DeliverySettings() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)]">Taxas de Entrega</h1>
-          <p className="text-[var(--text-muted)]">Gerencie as regiões e valores de frete para sua vitrine.</p>
+          <h1 className="text-2xl font-bold text-[var(--text-main)]">Locais de Busca (Motoboy)</h1>
+          <p className="text-[var(--text-muted)]">Gerencie os locais e taxas pagas aos motoboys para busca de peças.</p>
         </div>
         <div className="flex gap-2">
           {locations.length > 0 && (
@@ -185,24 +184,20 @@ export default function DeliverySettings() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs uppercase text-[var(--text-muted)]">
               <tr>
-                <th className="px-6 py-3 font-semibold">Região / Bairro</th>
-                <th className="px-6 py-3 font-semibold">Taxa Vitrine (Cliente)</th>
-                <th className="px-6 py-3 font-semibold">Taxa Busca Peças (Motoboy)</th>
+                <th className="px-6 py-3 font-semibold">Local / Assistência</th>
+                <th className="px-6 py-3 font-semibold">Taxa de Busca (Motoboy)</th>
                 <th className="px-6 py-3 font-semibold text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-color)]">
-              {locations.length > 0 ? (
-                locations.map((loc) => (
+              {locations.filter(l => (l.type || 'neighborhood') === 'service').length > 0 ? (
+                locations.filter(l => (l.type || 'neighborhood') === 'service').map((loc) => (
                   <tr key={loc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="px-6 py-4 font-medium text-[var(--text-main)]">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-blue-500" />
                         {loc.name}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--text-main)] font-bold">
-                      R$ {loc.value.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 text-[var(--text-main)] font-bold">
                       R$ {(loc.motoboyFee || 0).toFixed(2)}
@@ -233,7 +228,7 @@ export default function DeliverySettings() {
               ) : (
                 <tr>
                   <td colSpan={3} className="px-6 py-8 text-center text-[var(--text-muted)]">
-                    Nenhuma região cadastrada.
+                    Nenhum local de busca cadastrado.
                   </td>
                 </tr>
               )}
@@ -255,29 +250,18 @@ export default function DeliverySettings() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)]">Nome da Região / Bairro</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Nome do Local / Assistência</label>
                 <input
                   type="text"
                   required
                   className="input mt-1"
-                  placeholder="Ex: Centro, Cohab, etc."
+                  placeholder="Ex: Assistência X, Loja Y, etc."
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-[var(--text-muted)]">Taxa Vitrine - Entrega Cliente (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  className="input mt-1"
-                  value={value}
-                  onChange={(e) => setValue(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-[var(--text-muted)]">Taxa Busca de Peças - Pagamento Motoboy (R$)</label>
+                <label className="text-sm font-medium text-[var(--text-muted)]">Taxa de Busca - Pagamento Motoboy (R$)</label>
                 <input
                   type="number"
                   step="0.01"

@@ -113,8 +113,7 @@ export default function PublicStorefront() {
   };
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const shippingValue = selectedLocation?.value || 0;
-  const finalTotal = cartTotal + shippingValue;
+  const finalTotal = cartTotal;
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   const copyStorefrontLink = () => {
@@ -295,21 +294,18 @@ export default function PublicStorefront() {
     if (product) {
       message = `Olá! Vi seu produto na vitrine "${storefront.name}" e tenho interesse:\n\n*${product.name}*\nPreço: R$ ${product.price.toFixed(2)}\nLink: ${window.location.origin}/s/${slug}?product=${product.id}`;
     } else if (cart.length > 0) {
-      if (!customerName || !customerAddress || !selectedLocation) {
+      if (!customerName || !customerAddress) {
         toast.error('Por favor, preencha seus dados de entrega.');
         return;
       }
 
       message = `Olá! Gostaria de fazer um pedido na sua vitrine "${storefront.name}":\n\n`;
       message += `*Cliente:* ${customerName}\n`;
-      message += `*Endereço:* ${customerAddress}\n`;
-      message += `*Bairro/Região:* ${selectedLocation.name}\n\n`;
+      message += `*Endereço:* ${customerAddress}\n\n`;
       message += `*Itens:*\n`;
       cart.forEach(item => {
         message += `• ${item.quantity}x *${item.name}* - R$ ${(item.price * item.quantity).toFixed(2)}\n`;
       });
-      message += `\n*Subtotal:* R$ ${cartTotal.toFixed(2)}`;
-      message += `\n*Frete:* R$ ${shippingValue.toFixed(2)}`;
       message += `\n*Total: R$ ${finalTotal.toFixed(2)}*`;
     } else {
       message = `Olá! Vi sua vitrine "${storefront.name}" e gostaria de saber mais sobre seus produtos.`;
@@ -325,8 +321,6 @@ export default function PublicStorefront() {
           storefrontId: storefront.id,
           customerName,
           customerAddress,
-          locationId: selectedLocation.id,
-          locationName: selectedLocation.name,
           items: cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -334,7 +328,7 @@ export default function PublicStorefront() {
             quantity: item.quantity
           })),
           subtotal: cartTotal,
-          shipping: shippingValue,
+          shipping: 0,
           total: finalTotal,
           status: 'pending',
           createdAt: serverTimestamp()
@@ -589,27 +583,11 @@ export default function PublicStorefront() {
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
                           <input 
                             type="text" 
-                            placeholder="Rua, número, complemento..."
+                            placeholder="Rua, número, complemento, bairro..."
                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                             value={customerAddress}
                             onChange={(e) => setCustomerAddress(e.target.value)}
                           />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Bairro / Região</label>
-                          <select 
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                            value={selectedLocation?.id || ''}
-                            onChange={(e) => {
-                              const loc = deliveryLocations.find(l => l.id === e.target.value);
-                              setSelectedLocation(loc || null);
-                            }}
-                          >
-                            <option value="">Selecione seu bairro...</option>
-                            {deliveryLocations.map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name} - R$ {loc.value.toFixed(2)}</option>
-                            ))}
-                          </select>
                         </div>
                       </div>
                     </div>
@@ -620,14 +598,6 @@ export default function PublicStorefront() {
               {cart.length > 0 && (
                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-black/5 dark:border-white/5 space-y-4">
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span className="text-xs font-bold uppercase tracking-widest">Subtotal</span>
-                      <span className="font-bold">R$ {cartTotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span className="text-xs font-bold uppercase tracking-widest">Frete</span>
-                      <span className="font-bold">{shippingValue > 0 ? `R$ ${shippingValue.toFixed(2)}` : '--'}</span>
-                    </div>
                     <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
                       <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Total</span>
                       <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {finalTotal.toFixed(2)}</span>

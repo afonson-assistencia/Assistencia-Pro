@@ -559,7 +559,7 @@ export default function MotoboyDashboard() {
                   }}
                 >
                   <option value="">Selecione o local...</option>
-                  {locations.map(loc => (
+                  {locations.filter(l => (l.type || 'neighborhood') === 'service').map(loc => (
                     <option key={loc.id} value={loc.id}>
                       {loc.name} - R$ {((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value).toFixed(2)}
                     </option>
@@ -719,7 +719,7 @@ export default function MotoboyDashboard() {
                   required
                 >
                   <option value="">Selecione o local...</option>
-                  {locations.map(loc => (
+                  {locations.filter(l => (l.type || 'neighborhood') === 'service').map(loc => (
                     <option key={loc.id} value={loc.id}>
                       {loc.name} - R$ {((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value).toFixed(2)}
                     </option>

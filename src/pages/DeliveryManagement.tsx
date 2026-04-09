@@ -15,7 +15,7 @@ export default function DeliveryManagement() {
   const [runs, setRuns] = useState<DeliveryRun[]>([]);
   const [motoboys, setMotoboys] = useState<Motoboy[]>([]);
   const [activeTab, setActiveTab] = useState<'runs' | 'locations' | 'motoboys'>('runs');
-  
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingRun, setEditingRun] = useState<DeliveryRun | null>(null);
   const [editForm, setEditForm] = useState({
@@ -29,8 +29,8 @@ export default function DeliveryManagement() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<DeliveryLocation | null>(null);
   const [newLocationName, setNewLocationName] = useState('');
-  const [newLocationValue, setNewLocationValue] = useState('');
   const [newLocationMotoboyFee, setNewLocationMotoboyFee] = useState('');
+  const [newLocationType] = useState<'neighborhood' | 'service'>('service');
   
   const [isMotoboyModalOpen, setIsMotoboyModalOpen] = useState(false);
   const [newMotoboyName, setNewMotoboyName] = useState('');
@@ -182,26 +182,27 @@ export default function DeliveryManagement() {
 
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLocationName || !newLocationValue) return;
+    if (!newLocationName || !newLocationMotoboyFee) return;
 
     setLoading(prev => ({ ...prev, addLocation: true }));
     try {
       if (editingLocation) {
         await updateDoc(doc(db, 'deliveryLocations', editingLocation.id), {
           name: newLocationName,
-          value: parseFloat(newLocationValue),
-          motoboyFee: parseFloat(newLocationMotoboyFee) || 0
+          value: 0,
+          motoboyFee: parseFloat(newLocationMotoboyFee) || 0,
+          type: 'service'
         });
       } else {
         await addDoc(collection(db, 'deliveryLocations'), {
           name: newLocationName,
-          value: parseFloat(newLocationValue),
+          value: 0,
           motoboyFee: parseFloat(newLocationMotoboyFee) || 0,
+          type: 'service',
           createdAt: serverTimestamp()
         });
       }
       setNewLocationName('');
-      setNewLocationValue('');
       setNewLocationMotoboyFee('');
       setEditingLocation(null);
       setIsLocationModalOpen(false);
@@ -215,7 +216,6 @@ export default function DeliveryManagement() {
   const handleEditLocation = (location: DeliveryLocation) => {
     setEditingLocation(location);
     setNewLocationName(location.name);
-    setNewLocationValue(location.value.toString());
     setNewLocationMotoboyFee((location.motoboyFee || 0).toString());
     setIsLocationModalOpen(true);
   };
@@ -375,7 +375,7 @@ export default function DeliveryManagement() {
   const openNewLocationModal = () => {
     setEditingLocation(null);
     setNewLocationName('');
-    setNewLocationValue('');
+    setNewLocationMotoboyFee('');
     setIsLocationModalOpen(true);
   };
 
@@ -811,9 +811,17 @@ export default function DeliveryManagement() {
       )}
 
       {activeTab === 'locations' && (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {locations.map(loc => (
-            <div key={loc.id} className="card p-5 flex flex-col justify-between group relative overflow-hidden">
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Locais de Busca (Motoboy)
+            </h2>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {locations.filter(l => (l.type || 'neighborhood') === 'service').map(loc => (
+              <div key={loc.id} className="card p-5 flex flex-col justify-between group relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
                   <MapPin className="h-6 w-6" />
@@ -824,7 +832,7 @@ export default function DeliveryManagement() {
                     className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                     title="Editar"
                   >
-                    <Filter className="h-4 w-4" />
+                    <Edit2 className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteLocation(loc.id)}
@@ -840,15 +848,10 @@ export default function DeliveryManagement() {
               <div>
                 <h3 className="font-bold text-xl text-[var(--text-main)] mb-1">{loc.name}</h3>
                 <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                    <DollarSign className="h-4 w-4" />
-                    <span>{loc.value.toFixed(2)}</span>
-                    <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1 uppercase">Taxa Vitrine (Entrega Cliente)</span>
-                  </div>
                   <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-bold text-lg">
                     <Bike className="h-4 w-4" />
                     <span>{((loc.motoboyFee !== undefined && loc.motoboyFee !== null) ? loc.motoboyFee : loc.value).toFixed(2)}</span>
-                    <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1 uppercase">Taxa Busca de Peças (Pagamento Motoboy)</span>
+                    <span className="text-[10px] font-normal text-[var(--text-muted)] ml-1 uppercase">Taxa de Busca (Motoboy)</span>
                   </div>
                 </div>
               </div>
@@ -856,14 +859,15 @@ export default function DeliveryManagement() {
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -mr-12 -mt-12 blur-2xl pointer-events-none" />
             </div>
           ))}
-          {locations.length === 0 && (
+          {locations.filter(l => (l.type || 'neighborhood') === 'service').length === 0 && (
             <div className="col-span-full py-12 text-center card">
               <MapPin className="h-12 w-12 text-[var(--text-muted)] mx-auto mb-4 opacity-20" />
-              <p className="text-[var(--text-muted)]">Nenhum local cadastrado.</p>
+              <p className="text-[var(--text-muted)]">Nenhum local de busca cadastrado.</p>
             </div>
           )}
         </div>
-      )}
+      </div>
+    )}
 
       {activeTab === 'motoboys' && (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -1116,33 +1120,18 @@ export default function DeliveryManagement() {
             
             <form onSubmit={handleAddLocation} className="space-y-5">
               <div>
-                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Nome do Local</label>
+                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Nome do Local / Assistência</label>
                 <input
                   type="text"
                   required
                   className="input py-3"
-                  placeholder="Ex: Centro, Bairro X, Busca de Peças"
+                  placeholder="Ex: Assistência X, Loja Y, etc."
                   value={newLocationName}
                   onChange={(e) => setNewLocationName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Taxa Cliente (R$)</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    className="input py-3 pl-12"
-                    placeholder="0.00"
-                    value={newLocationValue}
-                    onChange={(e) => setNewLocationValue(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Taxa Motoboy (R$)</label>
+                <label className="block text-sm font-bold text-[var(--text-muted)] mb-2 uppercase tracking-wider">Taxa de Busca (R$)</label>
                 <div className="relative">
                   <Bike className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
                   <input
@@ -1163,7 +1152,6 @@ export default function DeliveryManagement() {
                     setIsLocationModalOpen(false);
                     setEditingLocation(null);
                     setNewLocationName('');
-                    setNewLocationValue('');
                     setNewLocationMotoboyFee('');
                   }}
                   className="btn btn-secondary flex-1 py-3"

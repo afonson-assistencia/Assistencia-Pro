@@ -1,4 +1,4 @@
-const CACHE_NAME = 'assispro-cache-v5';
+const CACHE_NAME = 'assispro-cache-v6';
 const urlsToCache = [
   '/',
   '/index.html',
