@@ -43,7 +43,6 @@ export default function Layout() {
       { path: '/cash-closure', label: 'Fechamento', icon: Wallet },
       { path: '/delivery-management', label: 'Logística', icon: Bike },
       { path: '/storefront', label: 'Vitrine', icon: Globe },
-      { path: '/storefront-orders', label: 'Pedidos Vitrine', icon: ShoppingBag },
       ...(isAdmin ? [{ path: '/access-logs', label: 'Logs de Acesso', icon: Shield }] : []),
     ]),
     ...(isAdmin ? [{ path: '/settings', label: 'Configurações', icon: SettingsIcon }] : []),
