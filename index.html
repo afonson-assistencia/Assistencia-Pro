@@ -4,21 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Assistência Pro - Gestão Inteligente</title>
-    <link id="manifest-link" rel="manifest" href="/manifest.json" />
+    <link id="manifest-link" rel="manifest" href="/manifest-admin.json" />
     <meta name="theme-color" content="#0f172a" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="shortcut icon" href="/logo.png" />
     <script>
-      // Dynamically set manifest based on URL
-      const manifestLink = document.getElementById('manifest-link');
-      if (window.location.pathname.includes('motoboy')) {
-        manifestLink.href = '/manifest-motoboy.json';
-      } else if (window.location.pathname.startsWith('/s/')) {
-        manifestLink.href = '/manifest.json';
-      } else {
-        manifestLink.href = '/manifest-admin.json';
-      }
+      // Dynamically set manifest based on URL as early as possible
+      (function() {
+        const manifestLink = document.getElementById('manifest-link');
+        const path = window.location.pathname;
+        if (path.includes('motoboy')) {
+          manifestLink.href = '/manifest-motoboy.json';
+        } else if (path.startsWith('/s/')) {
+          manifestLink.href = '/manifest.json';
+        } else {
+          manifestLink.href = '/manifest-admin.json';
+        }
+      })();
     </script>
   </head>
   <body>

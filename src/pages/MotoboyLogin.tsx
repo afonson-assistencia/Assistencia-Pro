@@ -12,6 +12,7 @@ export default function MotoboyLogin() {
   const [showConfigHelp, setShowConfigHelp] = useState(false);
   const navigate = useNavigate();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -110,14 +111,14 @@ export default function MotoboyLogin() {
       {/* Left Side - Image */}
       <div className="hidden md:block md:w-1/2 lg:w-3/5 relative overflow-hidden">
         <img 
-          src="https://img.freepik.com/premium-photo/delivery-man-scooter-express-food-delivery-around-city-yellow-background-delivery-fast-high-speed-ai-generation_235573-2619.jpg" 
-          alt="Delivery Man" 
+          src="https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png" 
+          alt="Motoboy Tech" 
           className="absolute inset-0 w-full h-full object-cover"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent"></div>
         <div className="absolute bottom-12 left-12 text-white">
-          <h2 className="text-4xl font-bold mb-2">Entrega Rápida</h2>
+          <h2 className="text-4xl font-bold mb-2">Motoboy Tech</h2>
           <p className="text-lg opacity-90">Gerencie suas corridas com facilidade.</p>
         </div>
       </div>
@@ -130,7 +131,7 @@ export default function MotoboyLogin() {
             <div className="inline-flex items-center justify-center p-3 sm:p-4 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/20 mb-4 sm:mb-6">
               <Bike className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Área do Motoboy</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Motoboy Tech</h1>
             <p className="text-sm sm:text-lg text-white mt-2 sm:mt-3">Bem-vindo de volta! Digite seu nome para entrar.</p>
           </div>
 
@@ -189,15 +190,42 @@ export default function MotoboyLogin() {
             </form>
 
             <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
-              {deferredPrompt && (
+              {deferredPrompt ? (
                 <button
                   onClick={handleInstall}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-500/20 animate-bounce"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-6 w-6" />
                   Instalar Aplicativo
                 </button>
+              ) : (
+                <button
+                  onClick={() => setShowIOSGuide(!showIOSGuide)}
+                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
+                >
+                  <Download className="h-4 w-4" />
+                  Como Instalar no Celular
+                </button>
               )}
+
+              {showIOSGuide && (
+                <div className="p-4 bg-blue-900/20 border border-blue-800 rounded-2xl text-white text-sm space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <p className="font-bold flex items-center gap-2 text-blue-400">
+                    <AlertCircle className="h-4 w-4" /> 
+                    Instruções para iPhone/iOS:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 opacity-90">
+                    <li>Abra este site no <b>Safari</b></li>
+                    <li>Toque no botão <b>Compartilhar</b> (quadrado com seta)</li>
+                    <li>Role para baixo e toque em <b>"Adicionar à Tela de Início"</b></li>
+                    <li>Toque em <b>Adicionar</b> no canto superior</li>
+                  </ol>
+                  <p className="text-[10px] text-blue-300/60 pt-2 border-t border-blue-800/50">
+                    Para Android, use o Google Chrome e aguarde o aviso de instalação.
+                  </p>
+                </div>
+              )}
+              
               <p className="text-center text-sm text-white">
                 Não é motoboy? <button onClick={() => navigate('/login')} className="text-blue-600 font-bold hover:underline">Acesso Administrativo</button>
               </p>

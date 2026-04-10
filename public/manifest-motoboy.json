@@ -1,28 +1,24 @@
 {
-  "name": "Motoboy - Assistência Pro",
-  "short_name": "AssisMoto",
-  "description": "Painel do Motoboy Assistência Pro",
+  "id": "assispro-motoboy",
+  "name": "Motoboy Tech",
+  "short_name": "MotoTech",
+  "description": "Painel do Motoboy Motoboy Tech",
   "start_url": "/motoboy-login",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo.png",
+      "src": "https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/logo.png",
-      "sizes": "144x144",
-      "type": "image/png"
     }
   ]
 }

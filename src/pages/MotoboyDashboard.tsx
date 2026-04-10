@@ -33,12 +33,36 @@ export default function MotoboyDashboard() {
   const [showHistory, setShowHistory] = useState(false);
   const [historyMonth, setHistoryMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [historyRuns, setHistoryRuns] = useState<DeliveryRun[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   if (!user || profile?.role !== 'motoboy') {
     return <Navigate to="/motoboy-login" />;
   }
 
+  // Effect for unpaid runs (Total a Receber) - Only depends on motoboyId
+  useEffect(() => {
+    if (!profile.motoboyId) return;
+
+    const qUnpaid = query(
+      collection(db, 'deliveryRuns'),
+      where('motoboyId', '==', profile.motoboyId),
+      where('status', 'in', ['pending', 'approved'])
+    );
+
+    const unsubscribeUnpaid = onSnapshot(qUnpaid, (snap) => {
+      setUnpaidRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
+      setLoadingStats(false);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'deliveryRuns/unpaid');
+      setLoadingStats(false);
+    });
+
+    return () => unsubscribeUnpaid();
+  }, [profile.motoboyId]);
+
+  // Effect for locations and today's runs
   useEffect(() => {
     // Fetch locations
     const qLocations = query(collection(db, 'deliveryLocations'), orderBy('name', 'asc'));
@@ -48,6 +72,7 @@ export default function MotoboyDashboard() {
 
     // Fetch runs for this motoboy and selected date
     if (profile.motoboyId) {
+      setLoadingRuns(true);
       const qRuns = query(
         collection(db, 'deliveryRuns'),
         where('motoboyId', '==', profile.motoboyId),
@@ -57,23 +82,15 @@ export default function MotoboyDashboard() {
 
       const unsubscribeRuns = onSnapshot(qRuns, (snap) => {
         setRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
-      }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns'));
+        setLoadingRuns(false);
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, 'deliveryRuns');
+        setLoadingRuns(false);
+      });
 
-      // Fetch ALL unpaid runs for this motoboy to calculate total balance
-      const qUnpaid = query(
-        collection(db, 'deliveryRuns'),
-        where('motoboyId', '==', profile.motoboyId),
-        where('status', 'in', ['pending', 'approved'])
-      );
-  
-      const unsubscribeUnpaid = onSnapshot(qUnpaid, (snap) => {
-        setUnpaidRuns(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryRun)));
-      }, (err) => handleFirestoreError(err, OperationType.GET, 'deliveryRuns/unpaid'));
-  
       return () => {
         unsubscribeLocations();
         unsubscribeRuns();
-        unsubscribeUnpaid();
       };
     }
 
@@ -89,6 +106,9 @@ export default function MotoboyDashboard() {
     .reduce((acc, run) => acc + (run.totalValue || (run.value * run.quantity)), 0);
 
   const totalToReceive = totalPendingApproval + totalApprovedToReceive;
+
+  const totalRunsToday = runs.reduce((acc, r) => acc + (r.quantity || 1), 0);
+  const totalRunsMonth = historyRuns.reduce((acc, r) => acc + (r.quantity || 1), 0);
 
   const handleAddRun = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,23 +272,30 @@ export default function MotoboyDashboard() {
   return (
     <div className="max-w-4xl mx-auto space-y-4 pb-20">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[var(--bg-card)] p-3 sm:p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="p-2 bg-blue-100 text-blue-600 rounded-full">
-            <Bike className="h-5 w-5 sm:h-6 sm:w-6" />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between bg-[var(--bg-card)] p-3 sm:p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-2 bg-blue-100 text-blue-600 rounded-full">
+              <Bike className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base sm:text-lg leading-tight">{profile.name}</h1>
+              <p className="text-[10px] sm:text-xs text-[var(--text-muted)]">Motoboy Tech</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-base sm:text-lg leading-tight">{profile.name}</h1>
-            <p className="text-[10px] sm:text-xs text-[var(--text-muted)]">Motoboy Parceiro</p>
-          </div>
+          <button 
+            onClick={() => signOut()}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            title="Sair"
+          >
+            <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
         </div>
-        <button 
-          onClick={() => signOut()}
-          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          title="Sair"
-        >
-          <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-        </button>
+        
+        <div className="px-1">
+          <h2 className="text-2xl font-black tracking-tight text-[var(--text-main)]">Meu Dashboard</h2>
+          <p className="text-sm text-[var(--text-muted)]">Acompanhe seus ganhos e corridas em tempo real.</p>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -277,59 +304,75 @@ export default function MotoboyDashboard() {
           <div className="p-3 bg-yellow-500 text-black rounded-lg">
             <DollarSign className="h-6 w-6" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">Total a Receber</p>
-            <p className="text-2xl font-black text-yellow-500">R$ {totalToReceive.toFixed(2)}</p>
+            {loadingStats ? (
+              <div className="h-8 w-24 bg-zinc-800 animate-pulse rounded mt-1"></div>
+            ) : (
+              <p className="text-2xl font-black text-yellow-500">R$ {totalToReceive.toFixed(2)}</p>
+            )}
           </div>
         </div>
         <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-emerald-500 shadow-lg shadow-emerald-500/10">
           <div className="p-3 bg-emerald-500 text-white rounded-lg">
             <CheckCircle className="h-6 w-6" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">Aprovado p/ Pagar</p>
-            <p className="text-2xl font-black text-emerald-500">R$ {totalApprovedToReceive.toFixed(2)}</p>
+            {loadingStats ? (
+              <div className="h-8 w-24 bg-zinc-800 animate-pulse rounded mt-1"></div>
+            ) : (
+              <p className="text-2xl font-black text-emerald-500">R$ {totalApprovedToReceive.toFixed(2)}</p>
+            )}
           </div>
         </div>
         <div className="card p-4 flex items-center gap-4 bg-zinc-900 border-blue-500 shadow-lg shadow-blue-500/10">
           <div className="p-3 bg-blue-500 text-white rounded-lg">
             <Clock className="h-6 w-6" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-[10px] text-zinc-400 uppercase font-black tracking-wider">Aguardando Aprovação</p>
-            <p className="text-2xl font-black text-blue-500">R$ {totalPendingApproval.toFixed(2)}</p>
+            {loadingStats ? (
+              <div className="h-8 w-24 bg-zinc-800 animate-pulse rounded mt-1"></div>
+            ) : (
+              <p className="text-2xl font-black text-blue-500">R$ {totalPendingApproval.toFixed(2)}</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Date Selector & Stats */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="card p-4 space-y-3">
-          <label className="text-sm font-medium text-[var(--text-muted)] flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Selecionar Data
-          </label>
-          <input
-            type="date"
-            className="input w-full text-sm sm:text-base dark:text-white [color-scheme:dark]"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card p-3 bg-[var(--bg-card)] border-[var(--border-color)]">
+          <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Corridas Hoje</p>
+          <p className="text-xl font-bold">{totalRunsToday}</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
-            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Ganhos</p>
-            <p className="text-xl sm:text-2xl font-bold text-emerald-600">R$ {totalEarned.toFixed(2)}</p>
-          </div>
-          <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
-            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Pagos</p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-600">R$ {totalPaid.toFixed(2)}</p>
-          </div>
-          <div className="card p-3 sm:p-4 flex flex-col justify-center items-center text-center">
-            <p className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-1">Pendentes</p>
-            <p className="text-xl sm:text-2xl font-bold text-yellow-600">{pendingCount}</p>
-          </div>
+        <div className="card p-3 bg-[var(--bg-card)] border-[var(--border-color)]">
+          <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Ganhos Hoje</p>
+          <p className="text-xl font-bold text-emerald-600">R$ {totalEarned.toFixed(2)}</p>
         </div>
+        <div className="card p-3 bg-[var(--bg-card)] border-[var(--border-color)]">
+          <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Corridas Mês</p>
+          <p className="text-xl font-bold">{totalRunsMonth}</p>
+        </div>
+        <div className="card p-3 bg-[var(--bg-card)] border-[var(--border-color)]">
+          <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Pagos Hoje</p>
+          <p className="text-xl font-bold text-blue-600">R$ {totalPaid.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Date Selector */}
+      <div className="card p-4 space-y-3">
+        <label className="text-sm font-medium text-[var(--text-muted)] flex items-center gap-2">
+          <Calendar className="h-4 w-4" />
+          Selecionar Data
+        </label>
+        <input
+          type="date"
+          className="input w-full text-sm sm:text-base dark:text-white [color-scheme:dark]"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+        />
       </div>
 
       {/* Runs List */}
@@ -438,7 +481,11 @@ export default function MotoboyDashboard() {
               )}
             </>
           ) : (
-            runs.length > 0 ? (
+            loadingRuns ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            ) : runs.length > 0 ? (
               runs.map(run => (
               <div key={run.id} className="card p-4 flex items-center justify-between hover:border-blue-200 transition-colors">
                 <div className="flex items-center gap-4">
