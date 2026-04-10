@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { collection, query, where, getDocs, onSnapshot, doc, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useSettings } from '../contexts/SettingsContext';
 import { Storefront, Product, Category, DeliveryLocation } from '../types';
@@ -8,7 +8,6 @@ import {
   Search, 
   Package, 
   MessageCircle, 
-  ShoppingCart, 
   ChevronRight, 
   ChevronLeft,
   X,
@@ -17,22 +16,16 @@ import {
   Share2,
   Check,
   AlertCircle,
-  RefreshCw,
-  Plus,
-  Minus,
-  Trash2,
-  ShoppingBag,
-  Copy
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import { toast, Toaster } from 'sonner';
 import { dbLocal } from '../db';
-import { serverTimestamp } from 'firebase/firestore';
 
-interface CartItem extends Product {
-  quantity: number;
+interface ProductWithImages extends Product {
+  imageUrls?: string[];
 }
 
 export default function PublicStorefront() {
@@ -47,71 +40,10 @@ export default function PublicStorefront() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isStorefrontDescriptionExpanded, setIsStorefrontDescriptionExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [customerName, setCustomerName] = useState('');
-
-  // Load cart from localStorage
-  useEffect(() => {
-    const savedCart = localStorage.getItem(`cart_${slug}`);
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart));
-      } catch (e) {
-        console.error('Error parsing cart:', e);
-      }
-    }
-  }, [slug]);
-
-  // Save cart to localStorage
-  useEffect(() => {
-    if (slug) {
-      localStorage.setItem(`cart_${slug}`, JSON.stringify(cart));
-    }
-  }, [cart, slug]);
-
-  const addToCart = (product: Product) => {
-    const isExisting = cart.some(item => item.id === product.id);
-    
-    if (isExisting) {
-      toast.success(`Mais um ${product.name} adicionado!`);
-    } else {
-      toast.success(`${product.name} adicionado ao carrinho!`);
-    }
-
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
-    toast.error('Produto removido do carrinho');
-  };
-
-  const updateQuantity = (productId: string, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === productId) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
-      return item;
-    }));
-  };
-
-  const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const finalTotal = cartTotal;
-  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   const copyStorefrontLink = () => {
     const url = window.location.href.split('?')[0];
@@ -284,19 +216,6 @@ export default function PublicStorefront() {
     let message = '';
     if (product) {
       message = `Olá! Vi seu produto na vitrine "${storefront.name}" e tenho interesse:\n\n*${product.name}*\nPreço: R$ ${product.price.toFixed(2)}\nLink: ${window.location.origin}/s/${slug}?product=${product.id}`;
-    } else if (cart.length > 0) {
-      if (!customerName) {
-        toast.error('Por favor, informe seu nome.');
-        return;
-      }
-
-      message = `Olá! Gostaria de fazer um pedido na sua vitrine "${storefront.name}":\n\n`;
-      message += `*Cliente:* ${customerName}\n\n`;
-      message += `*Itens:*\n`;
-      cart.forEach(item => {
-        message += `• ${item.quantity}x *${item.name}* - R$ ${(item.price * item.quantity).toFixed(2)}\n`;
-      });
-      message += `\n*Total: R$ ${finalTotal.toFixed(2)}*`;
     } else {
       message = `Olá! Vi sua vitrine "${storefront.name}" e gostaria de saber mais sobre seus produtos.`;
     }
@@ -304,40 +223,8 @@ export default function PublicStorefront() {
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${sanitizedNumber}?text=${encodedMessage}`;
 
-    const handleOrder = async () => {
-      // Save order to Firestore
-      try {
-        await addDoc(collection(db, 'storefrontOrders'), {
-          storefrontId: storefront.id,
-          customerName,
-          items: cart.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-          })),
-          subtotal: cartTotal,
-          shipping: 0,
-          total: finalTotal,
-          status: 'pending',
-          createdAt: serverTimestamp()
-        });
-        
-        // Clear cart
-        setCart([]);
-        localStorage.removeItem(`cart_${slug}`);
-        setIsCartOpen(false);
-        
-        // Open WhatsApp
-        window.open(whatsappUrl, '_blank');
-        toast.success('Pedido enviado com sucesso!');
-      } catch (err) {
-        console.error('Error saving order:', err);
-        toast.error('Erro ao processar pedido. Tente novamente.');
-      }
-    };
-
-    handleOrder();
+    // Open WhatsApp
+    window.open(whatsappUrl, '_blank');
   };
 
   const handleShare = () => {
@@ -434,168 +321,15 @@ export default function PublicStorefront() {
 
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white shadow-lg shadow-blue-500/20 transition-all active:scale-90"
+              onClick={() => handleWhatsApp()}
+              className="p-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-white shadow-lg shadow-emerald-500/20 transition-all active:scale-90 flex items-center gap-2"
             >
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
-                  {cartCount}
-                </span>
-              )}
+              <MessageCircle className="h-5 w-5" />
+              <span className="text-xs font-bold hidden sm:inline">Falar no WhatsApp</span>
             </button>
           </div>
         </div>
       </header>
-
-      {/* Shopping Cart Sidebar */}
-      <AnimatePresence>
-        {isCartOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col"
-            >
-              <div className="p-6 border-b border-black/5 dark:border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-blue-600">
-                    <ShoppingBag className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Meu Carrinho</h2>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cartCount} itens selecionados</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIsCartOpen(false)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-all"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-8">
-                {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center">
-                      <ShoppingCart className="h-10 w-10 text-slate-300" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-bold text-slate-900 dark:text-white">Seu carrinho está vazio</p>
-                      <p className="text-sm text-slate-400">Adicione produtos para fazer seu pedido.</p>
-                    </div>
-                    <button 
-                      onClick={() => setIsCartOpen(false)}
-                      className="btn btn-primary px-8"
-                    >
-                      Continuar Comprando
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Itens no Carrinho</h3>
-                      {cart.map((item) => (
-                        <motion.div 
-                          layout
-                          key={item.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-black/5 dark:border-white/5"
-                        >
-                          <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-800 overflow-hidden shrink-0 border border-black/5 dark:border-white/5">
-                            {item.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                <Package className="h-8 w-8" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 flex flex-col justify-between py-1">
-                            <div>
-                              <h4 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">{item.name}</h4>
-                              <p className="text-xs font-black text-blue-600">R$ {item.price.toFixed(2)}</p>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-full p-1 border border-black/5 dark:border-white/5">
-                                <button 
-                                  onClick={() => updateQuantity(item.id, -1)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
-                                <button 
-                                  onClick={() => updateQuantity(item.id, 1)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500 transition-colors"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
-                              <button 
-                                onClick={() => removeFromCart(item.id)}
-                                className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Seus Dados</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Seu Nome</label>
-                          <input 
-                            type="text" 
-                            placeholder="Como podemos te chamar?"
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {cart.length > 0 && (
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-black/5 dark:border-white/5 space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
-                      <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Total</span>
-                      <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {finalTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleWhatsApp()}
-                    className="w-full py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] hover:brightness-110"
-                    style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
-                  >
-                    <MessageCircle className="h-6 w-6" />
-                    Finalizar no WhatsApp
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       <Toaster position="top-center" richColors />
 
@@ -777,12 +511,13 @@ export default function PublicStorefront() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        addToCart(product);
+                        handleWhatsApp(product);
                       }}
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-lg shadow-blue-500/20"
-                      style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-lg shadow-emerald-500/20"
+                      style={{ backgroundColor: '#10b981', color: '#ffffff' }}
+                      title="Consultar no WhatsApp"
                     >
-                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                     </button>
                   </div>
                 </div>
@@ -970,24 +705,15 @@ export default function PublicStorefront() {
 
                 {/* Sticky Footer / CTA */}
                 <div className="p-6 sm:p-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800">
-                  <div className="max-w-md mx-auto sm:max-w-none space-y-3 sm:space-y-0">
-                    <div className="grid grid-cols-2 gap-4">
-                      <button 
-                        onClick={() => addToCart(selectedProduct)}
-                        className="py-4 sm:py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95"
-                      >
-                        <ShoppingCart className="h-5 w-5" />
-                        Carrinho
-                      </button>
-                      <button 
-                        onClick={() => handleWhatsApp(selectedProduct)}
-                        className="py-4 sm:py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-500/20 transition-all hover:brightness-110 active:scale-95"
-                        style={{ backgroundColor: currentTheme.buttonColor, color: currentTheme.buttonTextColor }}
-                      >
-                        <MessageCircle className="h-5 w-5" />
-                        Comprar
-                      </button>
-                    </div>
+                  <div className="max-w-md mx-auto sm:max-w-none">
+                    <button 
+                      onClick={() => handleWhatsApp(selectedProduct)}
+                      className="w-full py-4 sm:py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/20 transition-all hover:brightness-110 active:scale-95"
+                      style={{ backgroundColor: '#10b981', color: '#ffffff' }}
+                    >
+                      <MessageCircle className="h-6 w-6" />
+                      Consultar no WhatsApp
+                    </button>
                   </div>
                 </div>
               </div>
