@@ -4,25 +4,38 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Assistência Pro - Gestão Inteligente</title>
-    <link id="manifest-link" rel="manifest" href="/manifest-admin.json" />
+    <script>
+      // Global to store the install prompt
+      window.deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-install-available'));
+      });
+
+      // Dynamically set manifest based on URL as early as possible
+      (function() {
+        const path = window.location.pathname;
+        let manifest = '/manifest-admin.json';
+        if (path.includes('motoboy')) {
+          manifest = '/manifest-motoboy.json';
+        } else if (path.startsWith('/s/')) {
+          manifest = '/manifest.json';
+        }
+        
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifest;
+        link.id = 'manifest-link';
+        document.head.appendChild(link);
+      })();
+    </script>
     <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="shortcut icon" href="/logo.png" />
-    <script>
-      // Dynamically set manifest based on URL as early as possible
-      (function() {
-        const manifestLink = document.getElementById('manifest-link');
-        const path = window.location.pathname;
-        if (path.includes('motoboy')) {
-          manifestLink.href = '/manifest-motoboy.json';
-        } else if (path.startsWith('/s/')) {
-          manifestLink.href = '/manifest.json';
-        } else {
-          manifestLink.href = '/manifest-admin.json';
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>

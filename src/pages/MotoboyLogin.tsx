@@ -15,12 +15,17 @@ export default function MotoboyLogin() {
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    // Check if prompt was already captured
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
+    const handler = () => {
+      setDeferredPrompt((window as any).deferredPrompt);
     };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+
+    window.addEventListener('pwa-install-available', handler);
+    return () => window.removeEventListener('pwa-install-available', handler);
   }, []);
 
   const handleInstall = async () => {
@@ -29,6 +34,7 @@ export default function MotoboyLogin() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setDeferredPrompt(null);
+        (window as any).deferredPrompt = null;
       }
     }
   };

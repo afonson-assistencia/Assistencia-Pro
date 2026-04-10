@@ -1,10 +1,11 @@
-const CACHE_NAME = 'assispro-cache-v8';
+const CACHE_NAME = 'assispro-cache-v9';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest-admin.json',
   '/manifest-motoboy.json',
-  '/logo.png'
+  '/logo.png',
+  'https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png'
 ];
 
 self.addEventListener('install', event => {
