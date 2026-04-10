@@ -17,6 +17,11 @@ service cloud.firestore {
       );
     }
 
+    // Helper to get motoboyId from user profile
+    function getMotoboyId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.motoboyId;
+    }
+
     // Validate that the document contains only the allowed fields
     function hasOnlyAllowedFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
@@ -95,10 +100,10 @@ service cloud.firestore {
     }
 
     match /deliveryRuns/{runId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isAdmin() || (isSignedIn() && (resource.data.motoboyId == request.auth.uid || request.auth.token.role == 'motoboy') && resource.data.status == 'pending');
-      allow delete: if isAdmin();
+      allow read: if isSignedIn() && (isAdmin() || resource.data.motoboyId == getMotoboyId());
+      allow create: if isSignedIn() && request.resource.data.motoboyId == getMotoboyId();
+      allow update: if isAdmin() || (isSignedIn() && resource.data.motoboyId == getMotoboyId() && resource.data.status == 'pending');
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.motoboyId == getMotoboyId() && resource.data.status == 'pending');
     }
 
     match /sales/{saleId} {

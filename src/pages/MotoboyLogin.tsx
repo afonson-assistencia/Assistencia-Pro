@@ -199,41 +199,50 @@ export default function MotoboyLogin() {
               </button>
             </form>
 
-            <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-6">
               {isIframe && (
-                <div className="p-4 bg-amber-900/20 border border-amber-800 rounded-2xl text-amber-200 text-sm mb-4">
-                  <p className="font-bold flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" /> 
-                    Atenção: Instalação Bloqueada
-                  </p>
-                  <p className="mt-1 opacity-90">
-                    Você está visualizando o aplicativo dentro de uma moldura (preview). Para instalar no seu celular, você precisa abrir o link direto do aplicativo no seu navegador (Chrome ou Safari).
+                <div className="p-5 bg-amber-900/30 border-2 border-amber-500/50 rounded-3xl text-amber-100 text-sm shadow-lg shadow-amber-900/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-amber-500 text-black rounded-full">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                    <p className="font-black uppercase tracking-tight text-base">Instalação Bloqueada</p>
+                  </div>
+                  <p className="opacity-90 leading-relaxed">
+                    Você está no modo de visualização. Para instalar o **Motoboy Tech** no seu celular, você deve abrir o link direto no seu navegador.
                   </p>
                   <button 
                     onClick={() => window.open(window.location.href, '_blank')}
-                    className="mt-3 w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition-all"
+                    className="mt-4 w-full py-3 bg-amber-500 hover:bg-amber-600 text-black rounded-2xl font-black uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 active:scale-95"
                   >
-                    Abrir em Nova Aba para Instalar
+                    Abrir em Nova Aba
                   </button>
                 </div>
               )}
 
               {deferredPrompt ? (
-                <button
-                  onClick={handleInstall}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-500/20 animate-bounce"
-                >
-                  <Download className="h-6 w-6" />
-                  Instalar Aplicativo
-                </button>
+                <div className="space-y-3">
+                  <p className="text-center text-xs font-bold text-emerald-500 uppercase tracking-widest animate-pulse">
+                    Aplicativo Pronto para Instalar!
+                  </p>
+                  <button
+                    onClick={handleInstall}
+                    className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-black rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95 group"
+                  >
+                    <Download className="h-7 w-7 group-hover:bounce" />
+                    INSTALAR AGORA
+                  </button>
+                </div>
               ) : (
-                <button
-                  onClick={() => setShowIOSGuide(!showIOSGuide)}
-                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
-                >
-                  <Download className="h-4 w-4" />
-                  Como Instalar no Celular
-                </button>
+                !isIframe && (
+                  <button
+                    onClick={() => setShowIOSGuide(!showIOSGuide)}
+                    className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all border border-slate-700"
+                  >
+                    <Download className="h-5 w-5" />
+                    Como Instalar no Celular
+                  </button>
+                )
               )}
 
               {showIOSGuide && (
