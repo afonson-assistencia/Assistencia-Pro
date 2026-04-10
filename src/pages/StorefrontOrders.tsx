@@ -52,8 +52,7 @@ export default function StorefrontOrders() {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerAddress.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -137,7 +136,7 @@ export default function StorefrontOrders() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Buscar por cliente ou endereço..."
+            placeholder="Buscar por cliente..."
             className="input pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -239,15 +238,6 @@ export default function StorefrontOrders() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-5 w-5 text-slate-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Endereço de Entrega</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-300">{selectedOrder.customerAddress}</p>
-                      <p className="text-xs font-bold text-blue-600 mt-1">{selectedOrder.locationName}</p>
-                    </div>
-                  </div>
-
                   <div className="space-y-3">
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Itens do Pedido</p>
                     <div className="space-y-2">
@@ -266,14 +256,6 @@ export default function StorefrontOrders() {
                   </div>
 
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                    <div className="flex justify-between text-sm text-slate-500">
-                      <span>Subtotal</span>
-                      <span>R$ {selectedOrder.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-slate-500">
-                      <span>Frete</span>
-                      <span>R$ {selectedOrder.shipping.toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between text-lg font-black text-slate-900 dark:text-white pt-2">
                       <span>Total</span>
                       <span>R$ {selectedOrder.total.toFixed(2)}</span>

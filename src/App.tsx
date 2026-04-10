@@ -25,7 +25,6 @@ import ShoppingList from './pages/ShoppingList';
 import StorefrontManager from './pages/StorefrontManager';
 import PublicStorefront from './pages/PublicStorefront';
 import DeliveryManagement from './pages/DeliveryManagement';
-import DeliverySettings from './pages/DeliverySettings';
 import StorefrontOrders from './pages/StorefrontOrders';
 import MotoboyDashboard from './pages/MotoboyDashboard';
 import MotoboyLogin from './pages/MotoboyLogin';
@@ -90,7 +89,6 @@ function AppContent() {
           <Route path="settings" element={user ? <Settings /> : <Navigate to="/login" />} />
           <Route path="storefront" element={user ? <StorefrontManager /> : <Navigate to="/login" />} />
           <Route path="delivery-management" element={user ? <DeliveryManagement /> : <Navigate to="/login" />} />
-          <Route path="delivery-settings" element={user ? <DeliverySettings /> : <Navigate to="/login" />} />
           <Route path="storefront-orders" element={user ? <StorefrontOrders /> : <Navigate to="/login" />} />
           <Route path="access-logs" element={user ? <AccessLogs /> : <Navigate to="/login" />} />
           <Route path="motoboy-dashboard" element={user ? <MotoboyDashboard /> : <Navigate to="/login" />} />

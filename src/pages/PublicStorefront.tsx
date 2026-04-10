@@ -53,9 +53,6 @@ export default function PublicStorefront() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [deliveryLocations, setDeliveryLocations] = useState<DeliveryLocation[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<DeliveryLocation | null>(null);
-  const [customerAddress, setCustomerAddress] = useState('');
   const [customerName, setCustomerName] = useState('');
 
   // Load cart from localStorage
@@ -229,12 +226,6 @@ export default function PublicStorefront() {
           setIsSyncing(false);
         }
 
-        // Fetch Delivery Locations
-        const deliverySnap = await getDocs(collection(db, 'deliveryLocations'));
-        const deliveryList: DeliveryLocation[] = [];
-        deliverySnap.forEach(doc => deliveryList.push({ id: doc.id, ...doc.data() } as DeliveryLocation));
-        setDeliveryLocations(deliveryList);
-        
         setLoading(false);
       } catch (err) {
         console.error('Error fetching storefront:', err);
@@ -294,14 +285,13 @@ export default function PublicStorefront() {
     if (product) {
       message = `Olá! Vi seu produto na vitrine "${storefront.name}" e tenho interesse:\n\n*${product.name}*\nPreço: R$ ${product.price.toFixed(2)}\nLink: ${window.location.origin}/s/${slug}?product=${product.id}`;
     } else if (cart.length > 0) {
-      if (!customerName || !customerAddress) {
-        toast.error('Por favor, preencha seus dados de entrega.');
+      if (!customerName) {
+        toast.error('Por favor, informe seu nome.');
         return;
       }
 
       message = `Olá! Gostaria de fazer um pedido na sua vitrine "${storefront.name}":\n\n`;
-      message += `*Cliente:* ${customerName}\n`;
-      message += `*Endereço:* ${customerAddress}\n\n`;
+      message += `*Cliente:* ${customerName}\n\n`;
       message += `*Itens:*\n`;
       cart.forEach(item => {
         message += `• ${item.quantity}x *${item.name}* - R$ ${(item.price * item.quantity).toFixed(2)}\n`;
@@ -320,7 +310,6 @@ export default function PublicStorefront() {
         await addDoc(collection(db, 'storefrontOrders'), {
           storefrontId: storefront.id,
           customerName,
-          customerAddress,
           items: cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -567,7 +556,7 @@ export default function PublicStorefront() {
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Dados de Entrega</h3>
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Seus Dados</h3>
                       <div className="space-y-3">
                         <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Seu Nome</label>
@@ -577,16 +566,6 @@ export default function PublicStorefront() {
                             className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
-                          <input 
-                            type="text" 
-                            placeholder="Rua, número, complemento, bairro..."
-                            className="w-full bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                            value={customerAddress}
-                            onChange={(e) => setCustomerAddress(e.target.value)}
                           />
                         </div>
                       </div>
