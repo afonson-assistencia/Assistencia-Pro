@@ -5,8 +5,10 @@
   "description": "Sistema de Gestão para Assistência Técnica",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#020617",
   "theme_color": "#0f172a",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/logo.png",

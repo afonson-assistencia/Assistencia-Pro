@@ -14,7 +14,11 @@ export default function MotoboyLogin() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
+  const [isIframe, setIsIframe] = useState(false);
+
   useEffect(() => {
+    setIsIframe(window.self !== window.top);
+    
     // Check if prompt was already captured
     if ((window as any).deferredPrompt) {
       setDeferredPrompt((window as any).deferredPrompt);
@@ -196,6 +200,24 @@ export default function MotoboyLogin() {
             </form>
 
             <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
+              {isIframe && (
+                <div className="p-4 bg-amber-900/20 border border-amber-800 rounded-2xl text-amber-200 text-sm mb-4">
+                  <p className="font-bold flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" /> 
+                    Atenção: Instalação Bloqueada
+                  </p>
+                  <p className="mt-1 opacity-90">
+                    Você está visualizando o aplicativo dentro de uma moldura (preview). Para instalar no seu celular, você precisa abrir o link direto do aplicativo no seu navegador (Chrome ou Safari).
+                  </p>
+                  <button 
+                    onClick={() => window.open(window.location.href, '_blank')}
+                    className="mt-3 w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    Abrir em Nova Aba para Instalar
+                  </button>
+                </div>
+              )}
+
               {deferredPrompt ? (
                 <button
                   onClick={handleInstall}
