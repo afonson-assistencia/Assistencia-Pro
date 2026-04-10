@@ -12,25 +12,25 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png",
+      "src": "/motoboy_pwa.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png",
+      "src": "/motoboy_pwa.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png",
+      "src": "/motoboy_pwa.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png",
+      "src": "/motoboy_pwa.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
