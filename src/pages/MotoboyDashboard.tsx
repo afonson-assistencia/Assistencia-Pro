@@ -13,6 +13,7 @@ export default function MotoboyDashboard() {
   const { user, profile, signOut } = useAuth();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIframe, setIsIframe] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [locations, setLocations] = useState<DeliveryLocation[]>([]);
   const [runs, setRuns] = useState<DeliveryRun[]>([]);
@@ -47,6 +48,7 @@ export default function MotoboyDashboard() {
   // PWA Installation Logic
   useEffect(() => {
     setIsIframe(window.self !== window.top);
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true);
     
     if ((window as any).deferredPrompt) {
       setDeferredPrompt((window as any).deferredPrompt);
@@ -304,7 +306,7 @@ export default function MotoboyDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-4">
         {/* PWA Install Banner (Forceful) */}
-        {!isIframe && (deferredPrompt || !showIOSGuide) && (
+        {!isIframe && !isStandalone && (deferredPrompt || !showIOSGuide) && (
           <div className="bg-emerald-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">

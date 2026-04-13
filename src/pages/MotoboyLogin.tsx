@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Bike, LogIn, ShieldCheck, Moon, Sun, User, AlertCircle, Loader2, Download } from 'lucide-react';
+import { Bike, LogIn, ShieldCheck, Moon, Sun, User, AlertCircle, Loader2, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function MotoboyLogin() {
+  console.log('MotoboyLogin v2');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,9 +16,11 @@ export default function MotoboyLogin() {
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   const [isIframe, setIsIframe] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     setIsIframe(window.self !== window.top);
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true);
     
     // Check if prompt was already captured
     if ((window as any).deferredPrompt) {
@@ -235,47 +238,78 @@ export default function MotoboyLogin() {
                 </div>
               )}
 
-              <div className="space-y-4">
-                {deferredPrompt ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 justify-center text-emerald-500">
-                      <ShieldCheck className="h-5 w-5 animate-bounce" />
-                      <p className="text-center text-xs font-black uppercase tracking-widest">
-                        Pronto para Instalar!
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleInstall}
-                      className="w-full py-6 bg-emerald-500 hover:bg-emerald-600 text-black rounded-3xl font-black text-2xl flex flex-col items-center justify-center gap-1 transition-all shadow-[0_0_30px_rgba(16,185,129,0.4)] active:scale-95 group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Download className="h-8 w-8" />
-                        INSTALAR AGORA
-                      </div>
-                      <span className="text-[10px] opacity-70 font-bold">VERSÃO APLICATIVO</span>
-                    </button>
-                  </div>
-                ) : (
-                  !isIframe && (
-                    <div className="space-y-4">
-                      <button
-                        onClick={() => setShowIOSGuide(!showIOSGuide)}
-                        className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-500/30 active:scale-95"
-                      >
-                        <Download className="h-7 w-7" />
-                        INSTALAR NO CELULAR
-                      </button>
-                      
-                      <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 text-center">Dica de Instalação</p>
-                        <p className="text-xs text-slate-300 text-center leading-relaxed">
-                          Se o botão acima não funcionar, clique nos <b>três pontos (⋮)</b> do Chrome ou no <b>botão de compartilhar</b> do Safari e escolha <b>"Instalar"</b> ou <b>"Adicionar à Tela de Início"</b>.
+              {!isStandalone && (
+                <div className="space-y-4">
+                  {deferredPrompt ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 justify-center text-emerald-500">
+                        <ShieldCheck className="h-5 w-5 animate-bounce" />
+                        <p className="text-center text-xs font-black uppercase tracking-widest">
+                          Pronto para Instalar!
                         </p>
                       </div>
+                      <button
+                        onClick={handleInstall}
+                        className="w-full py-6 bg-emerald-500 hover:bg-emerald-600 text-black rounded-3xl font-black text-2xl flex flex-col items-center justify-center gap-1 transition-all shadow-[0_0_30px_rgba(16,185,129,0.4)] active:scale-95 group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Download className="h-8 w-8" />
+                          INSTALAR AGORA
+                        </div>
+                        <span className="text-[10px] opacity-70 font-bold">VERSÃO APLICATIVO</span>
+                      </button>
                     </div>
-                  )
-                )}
-              </div>
+                  ) : (
+                    !isIframe && (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-slate-900/80 border border-slate-700 rounded-2xl">
+                          <p className="text-center text-xs font-bold text-blue-400 uppercase tracking-widest mb-3">
+                            Instalação Manual (Recomendado)
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={() => setShowIOSGuide(!showIOSGuide)}
+                              className="py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border border-slate-600"
+                            >
+                              <Smartphone className="h-4 w-4" />
+                              iPhone (iOS)
+                            </button>
+                            <button
+                              onClick={() => setShowIOSGuide(!showIOSGuide)}
+                              className="py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border border-slate-600"
+                            >
+                              <Smartphone className="h-4 w-4" />
+                              Android
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {showIOSGuide && (
+                          <div className="p-5 bg-blue-900/30 border-2 border-blue-500/30 rounded-3xl text-white text-sm space-y-4 animate-in fade-in zoom-in duration-300">
+                            <div className="space-y-4">
+                              <div className="pb-3 border-b border-blue-500/20">
+                                <p className="font-black flex items-center gap-2 text-blue-400 uppercase text-xs tracking-wider">
+                                  <div className="w-6 h-6 rounded-full bg-blue-500 text-black flex items-center justify-center text-[10px]">1</div>
+                                  No Android (Chrome):
+                                </p>
+                                <p className="mt-2 opacity-90 text-xs">Toque nos <b>três pontos (⋮)</b> no canto superior e escolha <b>"Instalar aplicativo"</b> ou <b>"Adicionar à tela inicial"</b>.</p>
+                              </div>
+                              
+                              <div>
+                                <p className="font-black flex items-center gap-2 text-blue-400 uppercase text-xs tracking-wider">
+                                  <div className="w-6 h-6 rounded-full bg-blue-500 text-black flex items-center justify-center text-[10px]">2</div>
+                                  No iPhone (Safari):
+                                </p>
+                                <p className="mt-2 opacity-90 text-xs">Toque no botão <b>Compartilhar</b> (quadrado com seta) e escolha <b>"Adicionar à Tela de Início"</b>.</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
 
               {showIOSGuide && (
                 <div className="p-4 bg-blue-900/20 border border-blue-800 rounded-2xl text-white text-sm space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">

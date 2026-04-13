@@ -1,7 +1,19 @@
 {
   "rewrites": [
     {
-      "source": "/((?!sw.js|manifest.*|logo.png|motoboy_pwa.png|.*\\.).*)",
+      "source": "/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/manifest(.*).json",
+      "destination": "/manifest$1.json"
+    },
+    {
+      "source": "/(.*).(png|jpg|jpeg|gif|svg|ico|css|js)",
+      "destination": "/$1.$2"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
