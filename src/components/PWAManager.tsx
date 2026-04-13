@@ -11,7 +11,7 @@ export default function PWAManager() {
     
     if (path.includes('motoboy')) {
       manifest = '/manifest-motoboy.json';
-      icon = 'https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png';
+      icon = '/motoboy_pwa.png';
     } else if (path.startsWith('/s/')) {
       manifest = '/manifest.json';
     }

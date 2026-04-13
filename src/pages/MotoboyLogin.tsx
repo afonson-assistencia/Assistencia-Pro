@@ -25,6 +25,7 @@ export default function MotoboyLogin() {
     }
 
     const handler = () => {
+      console.log('PWA Install Available event received');
       setDeferredPrompt((window as any).deferredPrompt);
     };
 
@@ -121,7 +122,7 @@ export default function MotoboyLogin() {
       {/* Left Side - Image */}
       <div className="hidden md:block md:w-1/2 lg:w-3/5 relative overflow-hidden">
         <img 
-          src="https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png" 
+          src="/motoboy_pwa.png" 
           alt="Motoboy Tech" 
           className="absolute inset-0 w-full h-full object-cover"
           referrerPolicy="no-referrer"
@@ -235,13 +236,18 @@ export default function MotoboyLogin() {
                 </div>
               ) : (
                 !isIframe && (
-                  <button
-                    onClick={() => setShowIOSGuide(!showIOSGuide)}
-                    className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 transition-all border border-slate-700"
-                  >
-                    <Download className="h-5 w-5" />
-                    Como Instalar no Celular
-                  </button>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowIOSGuide(!showIOSGuide)}
+                      className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-2xl shadow-blue-500/30 active:scale-95 group"
+                    >
+                      <Download className="h-7 w-7 group-hover:bounce" />
+                      INSTALAR APLICATIVO
+                    </button>
+                    <p className="text-center text-[10px] text-slate-400 uppercase font-bold tracking-widest">
+                      Clique acima para ver como instalar no seu celular
+                    </p>
+                  </div>
                 )
               )}
 

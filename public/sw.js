@@ -6,7 +6,7 @@ const urlsToCache = [
   '/manifest-admin.json',
   '/manifest-motoboy.json',
   '/logo.png',
-  'https://ais-blob-umavookasan2cwp44ncokk-316706048151.us-west2.run.app/motoboy-tech.png'
+  '/motoboy_pwa.png'
 ];
 
 self.addEventListener('install', event => {
