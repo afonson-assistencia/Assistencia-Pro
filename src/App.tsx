@@ -32,6 +32,7 @@ import Layout from './components/Layout';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import PWAUpdateNotification from './components/PWAUpdateNotification';
+import PWAManager from './components/PWAManager';
 import { syncService } from './services/syncService';
 
 function AppContent() {
@@ -68,9 +69,8 @@ function AppContent() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+    <Routes>
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
         <Route path="/motoboy-login" element={!user ? <MotoboyLogin /> : <Navigate to="/" />} />
         <Route path="/s/:slug" element={<PublicStorefront />} />
         <Route
@@ -92,7 +92,6 @@ function AppContent() {
           <Route path="motoboy-dashboard" element={user ? <MotoboyDashboard /> : <Navigate to="/login" />} />
         </Route>
       </Routes>
-    </BrowserRouter>
   );
 }
 
@@ -101,8 +100,11 @@ export default function App() {
     <ErrorBoundary>
       <SettingsProvider>
         <AuthProvider>
-          <PWAUpdateNotification />
-          <AppContent />
+          <BrowserRouter>
+            <PWAManager />
+            <PWAUpdateNotification />
+            <AppContent />
+          </BrowserRouter>
         </AuthProvider>
       </SettingsProvider>
     </ErrorBoundary>

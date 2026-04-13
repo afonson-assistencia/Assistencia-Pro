@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!sw.js|manifest.*|logo.png|motoboy_pwa.png|.*\\.).*)",
+      "destination": "/index.html"
+    }
   ]
 }

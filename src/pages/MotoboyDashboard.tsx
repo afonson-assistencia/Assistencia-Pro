@@ -4,13 +4,16 @@ import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { useAuth } from '../contexts/AuthContext';
 import { DeliveryLocation, DeliveryRun, Motoboy } from '../types';
-import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2, Edit2, Trash2, MoreVertical, History } from 'lucide-react';
+import { Bike, Calendar, Plus, Clock, CheckCircle, XCircle, DollarSign, MapPin, LogOut, Loader2, Edit2, Trash2, MoreVertical, History, Download, AlertCircle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Navigate } from 'react-router-dom';
 
 export default function MotoboyDashboard() {
   const { user, profile, signOut } = useAuth();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIframe, setIsIframe] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [locations, setLocations] = useState<DeliveryLocation[]>([]);
   const [runs, setRuns] = useState<DeliveryRun[]>([]);
   const [unpaidRuns, setUnpaidRuns] = useState<DeliveryRun[]>([]);
@@ -40,6 +43,33 @@ export default function MotoboyDashboard() {
   if (!user || profile?.role !== 'motoboy') {
     return <Navigate to="/motoboy-login" />;
   }
+
+  // PWA Installation Logic
+  useEffect(() => {
+    setIsIframe(window.self !== window.top);
+    
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
+    const handler = () => {
+      setDeferredPrompt((window as any).deferredPrompt);
+    };
+
+    window.addEventListener('pwa-install-available', handler);
+    return () => window.removeEventListener('pwa-install-available', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+        (window as any).deferredPrompt = null;
+      }
+    }
+  };
 
   // Effect for unpaid runs (Total a Receber) - Only depends on motoboyId
   useEffect(() => {
@@ -273,6 +303,69 @@ export default function MotoboyDashboard() {
     <div className="max-w-4xl mx-auto space-y-4 pb-20">
       {/* Header */}
       <div className="flex flex-col gap-4">
+        {/* PWA Install Banner (Forceful) */}
+        {!isIframe && (deferredPrompt || !showIOSGuide) && (
+          <div className="bg-emerald-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <Download className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-black text-sm uppercase tracking-wider">Instalar App</p>
+                  <p className="text-xs opacity-90">Acesse mais rápido e receba notificações.</p>
+                </div>
+              </div>
+              {deferredPrompt ? (
+                <button
+                  onClick={handleInstall}
+                  className="bg-white text-emerald-600 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                >
+                  Instalar
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowIOSGuide(!showIOSGuide)}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
+                >
+                  Como?
+                </button>
+              )}
+            </div>
+            
+            {showIOSGuide && (
+              <div className="mt-4 pt-4 border-t border-white/10 space-y-3 text-sm animate-in fade-in zoom-in-95 duration-300">
+                <p className="font-bold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" /> 
+                  Instruções para iPhone/iOS:
+                </p>
+                <ol className="list-decimal list-inside space-y-1 opacity-90 text-xs">
+                  <li>Abra no <b>Safari</b></li>
+                  <li>Toque no botão <b>Compartilhar</b></li>
+                  <li>Selecione <b>"Adicionar à Tela de Início"</b></li>
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isIframe && (
+          <div className="bg-amber-500 rounded-2xl p-4 text-black shadow-lg shadow-amber-500/20">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-6 w-6" />
+                <p className="font-bold text-sm">Abra fora do preview para instalar!</p>
+              </div>
+              <button
+                onClick={() => window.open(window.location.href, '_blank')}
+                className="bg-black text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest"
+              >
+                Abrir
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between bg-[var(--bg-card)] p-3 sm:p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-2 bg-blue-100 text-blue-600 rounded-full">
