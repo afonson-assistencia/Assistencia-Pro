@@ -4,6 +4,7 @@
   "short_name": "AssisPro",
   "description": "Sistema de Gestão para Assistência Técnica",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#020617",

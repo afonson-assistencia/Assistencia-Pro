@@ -1,7 +1,8 @@
-const CACHE_NAME = 'assispro-cache-v9';
+const CACHE_NAME = 'assispro-cache-v10';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/manifest.json',
   '/manifest-admin.json',
   '/manifest-motoboy.json',
   '/logo.png',

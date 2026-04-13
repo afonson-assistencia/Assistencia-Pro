@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
-import { Smartphone, Eye, EyeOff, ShieldCheck, Moon, Sun, Bike, Loader2, Download } from 'lucide-react';
+import { Smartphone, Eye, EyeOff, ShieldCheck, Moon, Sun, Bike, Loader2, Download, AlertCircle } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,14 +15,22 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIframe, setIsIframe] = useState(false);
 
   useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    setIsIframe(window.self !== window.top);
+    
+    // Check if prompt was already captured
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
+    const handler = () => {
+      setDeferredPrompt((window as any).deferredPrompt);
     };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+
+    window.addEventListener('pwa-install-available', handler);
+    return () => window.removeEventListener('pwa-install-available', handler);
   }, []);
 
   const handleInstall = async () => {
@@ -31,6 +39,7 @@ export default function Login() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setDeferredPrompt(null);
+        (window as any).deferredPrompt = null;
       }
     }
   };
@@ -217,15 +226,40 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-6">
+            {isIframe && (
+              <div className="p-5 bg-amber-900/30 border-2 border-amber-500/50 rounded-3xl text-amber-100 text-sm shadow-lg shadow-amber-900/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-amber-500 text-black rounded-full">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <p className="font-black uppercase tracking-tight text-base">Instalação Bloqueada</p>
+                </div>
+                <p className="opacity-90 leading-relaxed">
+                  Você está no modo de visualização. Para instalar o **{settings.name}** no seu dispositivo, você deve abrir o link direto no seu navegador.
+                </p>
+                <button 
+                  onClick={() => window.open(window.location.href, '_blank')}
+                  className="mt-4 w-full py-3 bg-amber-500 hover:bg-amber-600 text-black rounded-2xl font-black uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 active:scale-95"
+                >
+                  Abrir em Nova Aba
+                </button>
+              </div>
+            )}
+
             {deferredPrompt && (
-              <button
-                onClick={handleInstall}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
-              >
-                <Download className="h-4 w-4" />
-                Instalar Aplicativo
-              </button>
+              <div className="space-y-3">
+                <p className="text-center text-xs font-bold text-emerald-500 uppercase tracking-widest animate-pulse">
+                  Aplicativo Pronto para Instalar!
+                </p>
+                <button
+                  onClick={handleInstall}
+                  className="w-full py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95 group"
+                >
+                  <Download className="h-7 w-7 group-hover:bounce" />
+                  INSTALAR AGORA
+                </button>
+              </div>
             )}
             
             <div className="pt-4 border-t border-[var(--border-color)]">
