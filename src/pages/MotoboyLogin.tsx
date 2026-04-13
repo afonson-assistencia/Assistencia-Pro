@@ -21,16 +21,30 @@ export default function MotoboyLogin() {
     
     // Check if prompt was already captured
     if ((window as any).deferredPrompt) {
+      console.log('PWA: Found existing deferredPrompt');
       setDeferredPrompt((window as any).deferredPrompt);
     }
 
-    const handler = () => {
-      console.log('PWA Install Available event received');
-      setDeferredPrompt((window as any).deferredPrompt);
+    const handler = (e: any) => {
+      console.log('PWA: beforeinstallprompt event fired');
+      e.preventDefault();
+      (window as any).deferredPrompt = e;
+      setDeferredPrompt(e);
     };
 
-    window.addEventListener('pwa-install-available', handler);
-    return () => window.removeEventListener('pwa-install-available', handler);
+    window.addEventListener('beforeinstallprompt', handler);
+    
+    // Custom event from index.html
+    const customHandler = () => {
+      console.log('PWA: pwa-install-available event received');
+      setDeferredPrompt((window as any).deferredPrompt);
+    };
+    window.addEventListener('pwa-install-available', customHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('pwa-install-available', customHandler);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -207,7 +221,7 @@ export default function MotoboyLogin() {
                     <div className="p-2 bg-amber-500 text-black rounded-full">
                       <AlertCircle className="h-5 w-5" />
                     </div>
-                    <p className="font-black uppercase tracking-tight text-base">Instalação Bloqueada</p>
+                    <p className="font-black uppercase tracking-tight text-base text-amber-500">Instalação Bloqueada</p>
                   </div>
                   <p className="opacity-90 leading-relaxed">
                     Você está no modo de visualização. Para instalar o **Motoboy Tech** no seu celular, você deve abrir o link direto no seu navegador.
@@ -221,35 +235,47 @@ export default function MotoboyLogin() {
                 </div>
               )}
 
-              {deferredPrompt ? (
-                <div className="space-y-3">
-                  <p className="text-center text-xs font-bold text-emerald-500 uppercase tracking-widest animate-pulse">
-                    Aplicativo Pronto para Instalar!
-                  </p>
-                  <button
-                    onClick={handleInstall}
-                    className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-black rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-2xl shadow-emerald-500/30 active:scale-95 group"
-                  >
-                    <Download className="h-7 w-7 group-hover:bounce" />
-                    INSTALAR AGORA
-                  </button>
-                </div>
-              ) : (
-                !isIframe && (
+              <div className="space-y-4">
+                {deferredPrompt ? (
                   <div className="space-y-3">
+                    <div className="flex items-center gap-2 justify-center text-emerald-500">
+                      <ShieldCheck className="h-5 w-5 animate-bounce" />
+                      <p className="text-center text-xs font-black uppercase tracking-widest">
+                        Pronto para Instalar!
+                      </p>
+                    </div>
                     <button
-                      onClick={() => setShowIOSGuide(!showIOSGuide)}
-                      className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-2xl shadow-blue-500/30 active:scale-95 group"
+                      onClick={handleInstall}
+                      className="w-full py-6 bg-emerald-500 hover:bg-emerald-600 text-black rounded-3xl font-black text-2xl flex flex-col items-center justify-center gap-1 transition-all shadow-[0_0_30px_rgba(16,185,129,0.4)] active:scale-95 group"
                     >
-                      <Download className="h-7 w-7 group-hover:bounce" />
-                      INSTALAR APLICATIVO
+                      <div className="flex items-center gap-3">
+                        <Download className="h-8 w-8" />
+                        INSTALAR AGORA
+                      </div>
+                      <span className="text-[10px] opacity-70 font-bold">VERSÃO APLICATIVO</span>
                     </button>
-                    <p className="text-center text-[10px] text-slate-400 uppercase font-bold tracking-widest">
-                      Clique acima para ver como instalar no seu celular
-                    </p>
                   </div>
-                )
-              )}
+                ) : (
+                  !isIframe && (
+                    <div className="space-y-4">
+                      <button
+                        onClick={() => setShowIOSGuide(!showIOSGuide)}
+                        className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-500/30 active:scale-95"
+                      >
+                        <Download className="h-7 w-7" />
+                        INSTALAR NO CELULAR
+                      </button>
+                      
+                      <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 text-center">Dica de Instalação</p>
+                        <p className="text-xs text-slate-300 text-center leading-relaxed">
+                          Se o botão acima não funcionar, clique nos <b>três pontos (⋮)</b> do Chrome ou no <b>botão de compartilhar</b> do Safari e escolha <b>"Instalar"</b> ou <b>"Adicionar à Tela de Início"</b>.
+                        </p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
 
               {showIOSGuide && (
                 <div className="p-4 bg-blue-900/20 border border-blue-800 rounded-2xl text-white text-sm space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
