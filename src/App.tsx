@@ -41,23 +41,6 @@ function AppContent() {
   useEffect(() => {
     // Initialize sync service
     syncService.init();
-
-    // Test connection to Firestore
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes('the client is offline') || error.message.includes('unavailable')) {
-            console.error("Firestore connection issue: The backend is unreachable. This may be due to a restricted network or incorrect configuration. Long polling has been enabled to help.");
-          } else {
-            console.error("Firestore connection test failed:", error.message);
-          }
-        }
-      }
-    }
-
-    testConnection();
   }, []);
 
   if (loading) {

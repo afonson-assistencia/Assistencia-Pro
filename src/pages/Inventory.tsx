@@ -3,7 +3,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, update
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { Product, Category } from '../types';
-import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2, Palette } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, TrendingUp, X, AlertCircle, Trash2, Edit2, CheckCircle2, MoreVertical, Settings2, Tag, RefreshCw, Loader2, Palette, Minus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Inventory() {
@@ -199,8 +199,10 @@ export default function Inventory() {
       setEditingProduct(product);
       setName(product.name);
       setPrice(product.price);
-      setStock(product.stock);
-      setCategory(product.categoryId || '');
+      setStock(Number(product.stock) || 0);
+      // Try to find category ID if missing (legacy data)
+      const catId = product.categoryId || categories.find(c => c.name === product.category)?.id || '';
+      setCategory(catId);
       setImei(product.imei || '');
       setDescription(product.description || '');
       setImageUrl(product.imageUrl || '');
@@ -473,14 +475,14 @@ export default function Inventory() {
                   </div>
                   <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-color)]">
                     <button
-                      onClick={() => updateStock(product.id, Math.max(0, product.stock - 1))}
+                      onClick={() => updateStock(product.id, Math.max(0, (Number(product.stock) || 0) - 1))}
                       disabled={actionLoading[`updateStock_${product.id}`]}
                       className="btn btn-secondary flex-1 h-9 disabled:opacity-50"
                     >
                       {actionLoading[`updateStock_${product.id}`] ? <Loader2 className="h-4 w-4 animate-spin" /> : '-'}
                     </button>
                     <button
-                      onClick={() => updateStock(product.id, product.stock + 1)}
+                      onClick={() => updateStock(product.id, (Number(product.stock) || 0) + 1)}
                       disabled={actionLoading[`updateStock_${product.id}`]}
                       className="btn btn-secondary flex-1 h-9 disabled:opacity-50"
                     >
@@ -547,7 +549,7 @@ export default function Inventory() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateStock(product.id, Math.max(0, product.stock - 1));
+                                  updateStock(product.id, Math.max(0, (Number(product.stock) || 0) - 1));
                                 }}
                                 disabled={actionLoading[`updateStock_${product.id}`]}
                                 className="btn btn-secondary h-7 w-7 p-0 text-xs disabled:opacity-50"
@@ -558,7 +560,7 @@ export default function Inventory() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateStock(product.id, product.stock + 1);
+                                  updateStock(product.id, (Number(product.stock) || 0) + 1);
                                 }}
                                 disabled={actionLoading[`updateStock_${product.id}`]}
                                 className="btn btn-secondary h-7 w-7 p-0 text-xs disabled:opacity-50"
@@ -656,16 +658,23 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Modal Novo Produto */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl bg-[var(--bg-card)] p-6 shadow-2xl border border-[var(--border-color)]">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-[var(--text-main)]">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
+              <button onClick={() => { setIsModalOpen(false); setError(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-main)]">
                 <X className="h-6 w-6" />
               </button>
             </div>
+
+            {error && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-[var(--text-muted)]">Nome do Produto</label>
@@ -703,15 +712,38 @@ export default function Inventory() {
                     onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
                   />
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-[var(--text-muted)]">Estoque Inicial</label>
-                  <input
-                    type="number"
-                    required
-                    className="input mt-1"
-                    value={stock}
-                    onChange={(e) => setStock(parseInt(e.target.value) || 0)}
-                  />
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-[var(--text-muted)]">
+                    {editingProduct ? 'Estoque Atual' : 'Estoque Inicial'}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStock(prev => Math.max(0, prev - 1))}
+                      className="btn btn-secondary h-11 w-11 p-0 flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)] hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      className="input h-11 text-center font-bold text-lg"
+                      value={stock}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) setStock(Math.max(0, val));
+                        else if (e.target.value === '') setStock(0);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setStock(prev => prev + 1)}
+                      className="btn btn-secondary h-11 w-11 p-0 flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)] hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div>

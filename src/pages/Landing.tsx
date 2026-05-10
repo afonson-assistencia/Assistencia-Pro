@@ -15,10 +15,10 @@ export default function Landing() {
     // Check if already installed or running in Tauri
     const checkInstallation = () => {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      const isTauri = !!(window as any).__TAURI__;
+      const isElectron = /electron/i.test(navigator.userAgent);
       const wasAccepted = localStorage.getItem('pwa-installed') === 'true';
       
-      if (isStandalone || isTauri || wasAccepted) {
+      if (isStandalone || isElectron || wasAccepted) {
         setIsInstalled(true);
       }
     };
@@ -168,7 +168,7 @@ export default function Landing() {
                 className="flex items-center gap-3 rounded-2xl bg-white/10 px-6 py-3 text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 border border-white/10 sm:px-10 sm:py-5 sm:text-xl"
               >
                 <Monitor className="h-6 w-6" />
-                <span>Baixar App Desktop (Tauri)</span>
+                <span>Baixar App Desktop (Electron)</span>
               </motion.button>
             )}
           </motion.div>

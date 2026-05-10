@@ -97,9 +97,10 @@ export default function ShoppingList() {
         const productRef = doc(db, 'products', item.productId);
         const productSnap = await getDoc(productRef);
         if (productSnap.exists()) {
-          const currentStock = productSnap.data().stock || 0;
+          const productData = productSnap.data();
+          const currentStock = Number(productData.stock) || 0;
           await updateDoc(productRef, {
-            stock: currentStock + item.quantity,
+            stock: currentStock + Number(item.quantity),
             updatedAt: serverTimestamp()
           });
         }
