@@ -409,6 +409,14 @@ ${order.status === 'ready'
     ? '✨ *Seu aparelho foi entregue!* Obrigado pela confiança.'
     : 'Este documento é o seu comprovante de entrada. Guarde-o para a retirada do aparelho.'}
 
+⚠️ *OBSERVAÇÃO IMPORTANTE SOBRE A GARANTIA*
+
+A garantia será automaticamente cancelada em casos de queda, impacto, contato com água, líquidos, umidade excessiva, oxidação causada por suor ou infiltração, bem como qualquer dano decorrente de mau uso do aparelho após a entrega.
+
+Caso sejam identificados sinais de oxidação, quebra, trincas, amassados ou qualquer intervenção de terceiros, a garantia não será aplicada.
+
+Ao receber o aparelho, o cliente declara estar ciente e de acordo com estas condições.
+
 🙏 *Obrigado pela preferência!*`;
     
     return getWhatsAppUrl(customerInfo.phone, message);

@@ -33,6 +33,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import PWAUpdateNotification from './components/PWAUpdateNotification';
 import PWAManager from './components/PWAManager';
+import ConnectionStatus from './components/ConnectionStatus';
 import { syncService } from './services/syncService';
 
 function AppContent() {
@@ -86,6 +87,7 @@ export default function App() {
           <BrowserRouter>
             <PWAManager />
             <PWAUpdateNotification />
+            <ConnectionStatus />
             <AppContent />
           </BrowserRouter>
         </AuthProvider>
